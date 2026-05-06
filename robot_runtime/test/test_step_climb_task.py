@@ -10,6 +10,8 @@ class FakeCore:
         self.velocities = []
         self.reset_count = 0
         self.suspension_count = 0
+        self.stop_count = 0
+        self.next_phase = SuspensionPhase.UP_1_PREPARE
 
     def update_direction(self, value):
         self.directions.append(int(value))
@@ -22,13 +24,16 @@ class FakeCore:
     def run_suspension_math_once(self):
         self.suspension_count += 1
         return {
-            'phase': SuspensionPhase.UP_1_PREPARE,
+            'phase': self.next_phase,
             'wheel_targets': [205.0] * 4,
             'target_height': 205.0,
         }
 
     def reset_suspension_math(self):
         self.reset_count += 1
+
+    def stop_all(self):
+        self.stop_count += 1
 
 
 def test_forward_step_climb_keeps_base_speed_and_corrects_y_wz():
@@ -75,6 +80,28 @@ def test_step_climb_reset_resets_suspension_math():
     task.reset()
 
     assert core.reset_count == 1
+
+
+def test_step_climb_is_done_after_sequence_returns_to_idle():
+    core = FakeCore()
+    task = StepClimbTask(core)
+
+    task.tick((0.0, 0.0, 0.0), now=1.0)
+    assert task.is_done() is False
+
+    core.next_phase = SuspensionPhase.IDLE
+    task.tick((0.0, 0.0, 0.0), now=1.1)
+
+    assert task.is_done() is True
+
+
+def test_step_climb_stop_calls_core_stop_all():
+    core = FakeCore()
+    task = StepClimbTask(core)
+
+    task.stop()
+
+    assert core.stop_count == 1
 
 
 def _close_list(values, expected, tolerance=1e-9):

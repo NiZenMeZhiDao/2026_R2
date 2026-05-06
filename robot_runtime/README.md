@@ -256,9 +256,9 @@ task.reset()
 
 while running:
     result = task.tick((0.0, y_error, yaw_error), now=time.monotonic())
-    if result['suspension']['phase'].name == 'IDLE':
+    if task.is_done():
         break
-    time.sleep(0.01)
+    time.sleep(task.config.control_period)
 ```
 
 ## Controller 独占规则

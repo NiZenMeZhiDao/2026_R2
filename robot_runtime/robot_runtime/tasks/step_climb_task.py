@@ -11,6 +11,8 @@ class StepClimbConfig:
     base_vx: float = 0.12
     base_vy: float = 0.0
     base_wz: float = 0.0
+    control_period: float = 0.01
+    timeout: float = 10.0
     correct_y: bool = True
     correct_wz: bool = True
     y_gains: PidGains = field(
@@ -41,10 +43,14 @@ class StepClimbTask:
         self.config = config or StepClimbConfig()
         self._pid_y = PidAxis(self.config.y_gains)
         self._pid_wz = PidAxis(self.config.wz_gains)
+        self._has_started_sequence = False
+        self._last_result = None
 
     def reset(self):
         self._pid_y.reset()
         self._pid_wz.reset()
+        self._has_started_sequence = False
+        self._last_result = None
         self.core.reset_suspension_math()
 
     def tick(self, pose_error=(0.0, 0.0, 0.0), now=None):
@@ -63,12 +69,24 @@ class StepClimbTask:
         self.core.update_direction(self.config.move_direction)
         chassis_msg = self.core.set_chassis_velocity(vx, vy, wz)
         suspension_result = self.core.run_suspension_math_once()
+        phase = suspension_result['phase']
+        if phase.name != 'IDLE':
+            self._has_started_sequence = True
 
-        return {
+        self._last_result = {
             'chassis': chassis_msg,
             'suspension': suspension_result,
             'velocity': [float(vx), float(vy), float(wz)],
         }
+        return self._last_result
+
+    def is_done(self):
+        if not self._has_started_sequence or self._last_result is None:
+            return False
+        return self._last_result['suspension']['phase'].name == 'IDLE'
+
+    def stop(self):
+        self.core.stop_all()
 
 
 def _read_pose_error(pose_error):
