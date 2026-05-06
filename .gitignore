@@ -1,0 +1,37 @@
+# ROS 2 / colcon build artifacts
+/build/
+/install/
+/log/
+
+# Python cache and packaging
+__pycache__/
+*.py[cod]
+*.pyo
+*.pyd
+*.so
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# IDE and editor files
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Local agent / tool metadata
+.agents/
+.codex/
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Generated local config
+design.ini
