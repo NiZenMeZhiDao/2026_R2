@@ -28,7 +28,7 @@ def main(args=None):
 def run_task(core):
     """Top-level task example: edit this function into the real field routine."""
     # Go to the forward stair start point, then climb forward.
-    core.move_to(x=1.00, y=0.00, theta=0.00, timeout=MOVE_TIMEOUT)
+    # core.move_to(x=1.00, y=0.00, theta=0.00, timeout=MOVE_TIMEOUT)
     climb_step(core, StepClimbConfig.forward(speed=0.5))
 
     # Example of a simple mode switch between navigation segments.
@@ -36,12 +36,12 @@ def run_task(core):
     core.set_height(30.0)
 
     # Go to the left stair start point, then climb left.
-    core.move_to(x=1.00, y=0.60, theta=1.5708, timeout=MOVE_TIMEOUT)
-    climb_step(core, StepClimbConfig.left(speed=0.35, base_vx=0.0))
+    core.move_to(x=1.20, y=0.00, theta=1.5708, timeout=MOVE_TIMEOUT)
+    climb_step(core, StepClimbConfig.forward(speed=0.5))
 
     # Go to the right stair start point, then climb right.
-    core.move_to(x=1.00, y=-0.60, theta=-1.5708, timeout=MOVE_TIMEOUT)
-    climb_step(core, StepClimbConfig.right(speed=0.35, base_vx=0.0))
+    core.move_to(x=1.20, y=1.20, theta=0, timeout=MOVE_TIMEOUT)
+    climb_step(core, StepClimbConfig.forward(speed=0.5))
 
     core.stop()
 
