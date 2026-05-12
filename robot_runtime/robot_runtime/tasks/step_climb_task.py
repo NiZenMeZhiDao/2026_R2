@@ -1,6 +1,7 @@
 from dataclasses import dataclass, field
 
-from robot_runtime.libraries.pid import PidAxis, PidGains
+from robot_runtime.libraries.pid import AnglePidAxis, PidAxis, PidGains
+from robot_runtime.libraries.suspension_math import SuspensionPhase
 
 
 @dataclass
@@ -28,11 +29,11 @@ class StepClimbConfig:
 
     @classmethod
     def left(cls, speed=0.12, **kwargs):
-        return cls(move_direction=-1, base_vy=speed, **kwargs)
+        return cls(move_direction=1, base_vy=speed, **kwargs)
 
     @classmethod
     def right(cls, speed=0.12, **kwargs):
-        return cls(move_direction=1, base_vy=-speed, **kwargs)
+        return cls(move_direction=-1, base_vy=-speed, **kwargs)
 
 
 class StepClimbTask:
@@ -42,16 +43,18 @@ class StepClimbTask:
         self.core = core
         self.config = config or StepClimbConfig()
         self._pid_y = PidAxis(self.config.y_gains)
-        self._pid_wz = PidAxis(self.config.wz_gains)
+        self._pid_wz = AnglePidAxis(self.config.wz_gains)
         self._has_started_sequence = False
         self._last_result = None
+        self._stepmode_enabled = False
 
     def reset(self):
         self._pid_y.reset()
         self._pid_wz.reset()
         self._has_started_sequence = False
         self._last_result = None
-        self.core.reset_suspension_math()
+        self._stepmode_enabled = False
+        self.core.set_stepmode(False)
 
     def tick(self, pose_error=(0.0, 0.0, 0.0), now=None):
         """Run one task cycle and return the published command data."""
@@ -66,15 +69,24 @@ class StepClimbTask:
         if self.config.correct_wz:
             wz += self._pid_wz.update(yaw_error, now)
 
-        self.core.update_direction(self.config.move_direction)
-        chassis_msg = self.core.set_chassis_velocity(vx, vy, wz)
-        suspension_result = self.core.run_suspension_math_once()
+        if not self._stepmode_enabled:
+            self.core.set_stepmode(True, self.config.move_direction)
+            self._stepmode_enabled = True
+
+        chassis_skill = self.core.move(vx, vy, wz, 0.0)
+        if not _core_has_background_tick(self.core):
+            self.core.tick_skills()
+        suspension_result = self.core.last_suspension_result or {
+            'phase': _current_suspension_phase(self.core),
+            'wheel_targets': list(self.core.context.suspension_target),
+            'target_height': 0.0,
+        }
         phase = suspension_result['phase']
         if phase.name != 'IDLE':
             self._has_started_sequence = True
 
         self._last_result = {
-            'chassis': chassis_msg,
+            'chassis': chassis_skill,
             'suspension': suspension_result,
             'velocity': [float(vx), float(vy), float(wz)],
         }
@@ -86,7 +98,7 @@ class StepClimbTask:
         return self._last_result['suspension']['phase'].name == 'IDLE'
 
     def stop(self):
-        self.core.stop_all()
+        self.core.stop()
 
 
 def _read_pose_error(pose_error):
@@ -105,3 +117,13 @@ def _read_pose_error(pose_error):
     if len(values) < 3:
         raise ValueError('pose_error must contain x, y and yaw')
     return float(values[0]), float(values[1]), float(values[2])
+
+
+def _core_has_background_tick(core):
+    return getattr(core, '_skill_timer', None) is not None
+
+
+def _current_suspension_phase(core):
+    suspension_math = getattr(core, 'suspension_math', None)
+    state = getattr(suspension_math, 'state', None)
+    return getattr(state, 'phase', SuspensionPhase.IDLE)

@@ -6,9 +6,9 @@
 
 - 外部驱动包之间继续用 ROS 2 topic 通信。
 - 中层任务和底层控制之间使用 Python 函数调用。
-- 底层 controller 不写循环逻辑，不做计算。
-- 中层任务自己决定循环频率，每调用一次底层函数，底层只发送一次命令。
-- 底盘 PID、悬挂状态机这类计算放在计算库或 task helper 中，由中层选择性调用。
+- 底层 controller 不写任务逻辑，不做计算。
+- 中层任务调用 `RuntimeCore` skill；持续命令由 `RuntimeCore` 后台 tick 继续发布，新命令覆盖旧命令。
+- 底盘移动、定位移动、悬挂高度和台阶模式统一通过 skill 调用；复杂计算放在计算库或 task helper 中。
 
 ## 分层关系
 
@@ -19,12 +19,12 @@
 中层 Task / Skill
   读取 RuntimeCore.context
   调用计算库
-  调用 RuntimeCore 控制函数
-  自己维护任务循环
+  调用 RuntimeCore skill
+  组合动作和判断任务结束
 
 底层 robot_runtime
   runtime_node: 只和外部驱动 topic 通信
-  runtime_core: 给中层提供 Python 函数 API
+  runtime_core: 给中层提供异步 skill API
   controller: 调用一次，向 ROS topic 发布一次控制命令
 ```
 
@@ -44,20 +44,30 @@ ares_usb / 下位机
   -> runtime_node
   -> RuntimeCore.update_lower_machine()
   -> RobotContext
+
+slam_odin_bridge / Odin 外部定位驱动桥接
+  -> /robot_pose
+  -> /robot_pose_odom
+  -> /imu/data
+  -> /localization/status
+  -> runtime_node
+  -> RobotContext
 ```
 
 底层控制输出：
 
 ```text
 中层任务
-  -> RuntimeCore.set_chassis_velocity()
+  -> RuntimeCore.move()
+  -> RuntimeCore 后台 skill tick
   -> ChassisController
   -> /t0x0101_cmdvel
   -> ares_usb 动态透传
   -> 下位机 0x0101
 
 中层任务
-  -> RuntimeCore.run_suspension_math_once()
+  -> RuntimeCore.set_stepmode(True, direction)
+  -> RuntimeCore 后台 skill tick
   -> SuspensionMath.tick(context)
   -> SuspensionController
   -> /t0x0102_action
@@ -71,7 +81,8 @@ ares_usb / 下位机
 
 ```text
 中层任务
-  -> core.set_chassis_velocity(vx, vy, wz)
+  -> core.move(vx, vy, wz, time=0)
+  -> RuntimeCore 后台 skill tick
   -> ChassisController.set_velocity()
   -> 发布 std_msgs/Float32MultiArray 到 /t0x0101_cmdvel
   -> ares_usb 识别 t0x0101 前缀
@@ -94,7 +105,8 @@ data: [x方向速度, y方向速度, z轴旋转速度]
 
 ```text
 中层任务
-  -> core.run_suspension_math_once()
+  -> core.set_stepmode(True, direction)
+  -> RuntimeCore 后台 skill tick
   -> SuspensionMath.tick(context)
   -> 得到 wheel_targets = [h0, h1, h2, h3]
   -> SuspensionController.set_wheel_heights()
@@ -125,14 +137,26 @@ ROS 节点外壳，只订阅外部驱动 topic，然后调用 `RuntimeCore.updat
 
 - `context`
 - `body`
-- `chassis_pid`
 - `suspension_math`
 
-中层一般只需要拿到 `RuntimeCore`，然后通过它读状态、调用底层。
+中层一般只需要拿到 `RuntimeCore`，然后通过它读状态、调用 skill。
 
 `robot_runtime/robot_context.py`
 
 共享状态缓存。由 `runtime_node` 通过 `RuntimeCore.update_xxx()` 更新，中层和计算库读取。
+
+定位相关字段：
+
+- `robot_pose_map`: `map` 坐标系下的机器人位姿。
+- `robot_pose`: 兼容旧接口，当前等同于 `robot_pose_map`。
+- `robot_pose_odom`: `odom` 坐标系下的 Odin 连续里程计位姿。
+- `robot_pose_map_xytheta`: `[x, y, theta]`，map 坐标系下的平面位姿摘要。
+- `robot_pose_odom_xytheta`: `[x, y, theta]`，odom 坐标系下的平面位姿摘要。
+- `robot_x`、`robot_y`、`robot_theta`: map 坐标系下任务层常用定位字段。
+- `odom_x`、`odom_y`、`odom_theta`: odom 坐标系下连续里程计字段。
+- `localization_ready`: map 定位是否可用。
+- `odom_ready`: odom 里程计是否已经收到。
+- `localization_status`: `waiting_for_odom`、`odom_only`、`localized` 等定位状态。
 
 `robot_runtime/robot_body.py`
 
@@ -171,79 +195,67 @@ controller 独占保护。调用 controller 时必须带 `owner`，避免多个�
 
 ## RuntimeCore 常用 API
 
-底盘：
+底盘和定位：
 
 ```python
-core.set_chassis_velocity(vx, vy, wz)
-core.set_chassis_twist(twist)
-core.pid_to_relative_pose(pose_error)
-core.reset_chassis_pid()
+core.move(vx, vy, wz, time=0.0)
+core.move_to(x, y, theta, timeout=10.0)
+core.stop()
 ```
 
 悬挂：
 
 ```python
-core.set_suspension_heights([h0, h1, h2, h3])
-core.set_all_suspension_height(height)
-core.run_suspension_math_once()
-core.reset_suspension_math()
-```
-
-安全和占用：
-
-```python
-core.stop_all()
-core.release_controllers()
+core.set_height(height)
+core.set_stepmode(True, direction=0)
+core.set_stepmode(False)
 ```
 
 ## 中层调用示例
 
-底盘 PID 微调：
+持续移动，直到下一条移动命令覆盖：
 
 ```python
-from geometry_msgs.msg import Twist
-
-error = Twist()
-error.linear.x = 0.20
-error.linear.y = -0.03
-error.angular.z = 0.10
-
-cmd = core.pid_to_relative_pose(error)
+core.move(0.20, 0.0, 0.0, time=0.0)
 ```
 
 这会做三件事：
 
 ```text
-读取 error
-  -> ChassisPidTask 计算 Twist
-  -> ChassisController 转成 [vx, vy, wz]
-  -> 发布 /t0x0101_cmdvel 一次
+记录 active motion skill
+  -> RuntimeCore 后台 timer 持续发布 [vx, vy, wz]
+  -> 新的 move/move_to/stop 覆盖旧移动命令
 ```
 
-悬挂状态机走一步：
+移动指定时长后自动停止：
 
 ```python
-result = core.run_suspension_math_once()
-phase = result['phase']
-targets = result['wheel_targets']
+core.move(0.20, 0.0, 0.0, time=2.0)
 ```
 
-这会做三件事：
-
-```text
-读取 core.context 中的测距、PE、轮高、方向
-  -> SuspensionMath.tick(context) 计算四轮目标高度
-  -> SuspensionController 发布 /t0x0102_action 一次
-```
-
-中层如果要循环，需要自己控制频率：
+移动到 map 坐标系目标位姿：
 
 ```python
-while running:
-    result = core.run_suspension_math_once()
-    if result['phase'].name == 'IDLE':
-        break
-    time.sleep(0.01)
+core.move_to(x=1.0, y=0.5, theta=0.0)
+```
+
+`move_to()` 默认是同步 skill：到达目标点后才返回，默认 10 秒超时。需要后台模式时可以用：
+
+```python
+core.move_to(x=1.0, y=0.5, theta=0.0, wait=False)
+```
+
+悬挂保持高度：
+
+```python
+core.set_height(30.0)
+```
+
+进入台阶模式：
+
+```python
+core.set_stepmode(True, direction=0)   # 0 前进，1 左，-1 右
+phase = core.last_suspension_result['phase']
 ```
 
 上台阶任务 helper：
@@ -293,8 +305,10 @@ runtime 只保留这些外部 topic：
 /current_state
 /suspension/status
 /robot_pose
+/robot_pose_odom
 /imu/data
 /nav/status
+/localization/status
 /direction
 /emergency_stop
 ```
@@ -304,15 +318,63 @@ runtime 只保留这些外部 topic：
 ```text
 /t0x0101_cmdvel
 /t0x0102_action
+/runtime/debug
 ```
 
 不再使用 topic 做内部控制，例如不再通过 `/runtime/test_command` 或 `/relative_pose_error` 控制底盘。
+
+`/runtime/debug` 是中文调试文本，包含底盘速度指令、四轮高度指令、上楼梯方向、当前 move_to 目标和位置误差、光电遮挡情况、四轮实时高度（即 `r0x0201` 第 5-8 个数据）、测距数据、定位状态和最近错误。`r0x0201` 第 5-8 个数据已经作为四轮实时高度显示，不再额外重复输出完整原始数组。现场调试可以直接看：
+
+```bash
+ros2 topic echo /runtime/debug
+```
 
 ## 启动
 
 ```bash
 source install/setup.bash
 ros2 launch robot_runtime runtime_bottom_layer.launch.py
+```
+
+调试输出默认 0.5 秒发布一次。可以调慢或关闭：
+
+```bash
+ros2 launch robot_runtime runtime_bottom_layer.launch.py debug_period_sec:=1.0
+ros2 launch robot_runtime runtime_bottom_layer.launch.py debug_period_sec:=0.0
+```
+
+如果要只使用 Odin 桥接已经存在的 `/odin1/odometry`、`/odin1/imu` 和 TF，构建 runtime 与桥接包即可：
+
+```bash
+colcon build --packages-select robot_runtime slam_odin_bridge ares_usb multi_serial_sensor
+source install/setup.bash
+```
+
+如果要由 launch 一起启动 Odin 外部驱动，需要同时构建 `odin_ros_driver`：
+
+```bash
+colcon build --packages-select robot_runtime slam_odin_bridge odin_ros_driver ares_usb multi_serial_sensor
+source install/setup.bash
+```
+
+带 Odin 外部定位驱动和桥接启动：
+
+```bash
+source install/setup.bash
+ros2 launch robot_runtime runtime_with_odin.launch.py \
+  pcd_path:=/home/xiexiang/2026_R2/slam_odin/map.pcd \
+  debug_period_sec:=0.5
+```
+
+这个 launch 会同时启动：
+
+```text
+ares_usb/usb_bridge_node
+multi_serial_sensor/multi_serial_node
+robot_runtime/runtime_node
+odin_ros_driver/host_sdk_sample
+slam_odin_bridge/odin_localization_bridge
+slam_odin_bridge/pcd_map_publisher
 ```
 
 默认 launch 会启动：
@@ -323,12 +385,14 @@ multi_serial_sensor
 robot_runtime_node
 ```
 
-运行前进上台阶脚本：
+运行三方向上台阶和预设导航目标测试脚本：
 
 ```bash
 source install/setup.bash
 ros2 run robot_runtime step_climb_forward
 ```
+
+这个入口是一个简单顶层任务样板，直接顺序调用 skill：先 `core.move_to()` 到预设 map 目标点，再调用 `StepClimbTask` 上台阶，中间演示了 `core.set_stepmode(False)` 和 `core.set_height(30.0)`。后续复杂任务可以直接照着这个函数改成“先去哪里、关主动升降、再去哪里、再打开”等流程。
 
 `active_suspension_control/suspension_node` 不默认启动，避免它和 `robot_runtime` 同时发布 `/t0x0102_action` 造成控制冲突。
 
@@ -339,4 +403,4 @@ ros2 run robot_runtime step_climb_forward
 - 新增任务逻辑放到中层或 `tasks/`。
 - 新增纯计算放到 `libraries/`。
 - 内部模块之间优先函数调用，只有外部驱动边界使用 ROS topic。
-- 需要持续控制时，中层自己写循环；底层每次函数调用只发布一次。
+- 需要持续控制时，优先新增或复用 `RuntimeCore` skill；底层 controller 仍保持“一次调用只发一次 ROS 命令”。

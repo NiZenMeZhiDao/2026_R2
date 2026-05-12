@@ -6,6 +6,7 @@ ROS 2 workspace for an autonomous mobile robot with:
 - active suspension step climbing
 - USB lower-machine bridge
 - distance sensor input
+- Odin SLAM/localization bridge
 
 This repository is organized around a runtime-centered control path:
 external drivers publish ROS topics, `robot_runtime` caches state and exposes
@@ -33,6 +34,13 @@ USB bridge package for communicating with the lower machine.
 
 Distance sensor input package.
 
+### `slam_odin_bridge`
+
+Bridge package for treating `slam_odin/src/odin_ros_driver` as an external
+localization driver. It converts Odin odometry plus TF into `/robot_pose` in the
+`map` frame, republishes Odin IMU to `/imu/data`, and can publish `map.pcd` as
+`/odin1/map`.
+
 ### `active_suspension_control`
 
 Older standalone active suspension package kept here as reference during migration.
@@ -47,6 +55,8 @@ otherwise both may publish to `/t0x0102_action`.
 ├── robot_runtime/               # current runtime and task-side control entry
 ├── ares_usb/                    # USB bridge to lower machine
 ├── multi_serial_sensor/         # distance sensor driver
+├── slam_odin_bridge/            # Odin external driver bridge
+├── slam_odin/                   # Odin driver workspace and local maps
 ├── active_suspension_control/   # legacy suspension package for comparison
 ├── ros_architecture_design.md   # higher-level architecture notes
 └── design.ini                   # local design notes, ignored in git
@@ -82,8 +92,10 @@ Input topics used by `robot_runtime`:
 - `/current_state`
 - `/suspension/status`
 - `/robot_pose`
+- `/robot_pose_odom`
 - `/imu/data`
 - `/nav/status`
+- `/localization/status`
 - `/direction`
 - `/emergency_stop`
 
@@ -104,7 +116,14 @@ source install/setup.bash
 If you only want to build the main runtime path first:
 
 ```bash
-colcon build --packages-select robot_runtime ares_usb multi_serial_sensor
+colcon build --packages-select robot_runtime slam_odin_bridge ares_usb multi_serial_sensor
+source install/setup.bash
+```
+
+If you want to start Odin together with the runtime, also build the Odin driver:
+
+```bash
+colcon build --packages-select robot_runtime slam_odin_bridge odin_ros_driver ares_usb multi_serial_sensor
 source install/setup.bash
 ```
 
@@ -116,7 +135,19 @@ Start the bottom-layer runtime stack:
 ros2 launch robot_runtime runtime_bottom_layer.launch.py
 ```
 
-Run the default forward step-climb task entry:
+Start the bottom-layer runtime stack with the Odin external driver bridge:
+
+```bash
+ros2 launch robot_runtime runtime_with_odin.launch.py \
+  pcd_path:=/home/xiexiang/2026_R2/slam_odin/map.pcd \
+  debug_period_sec:=0.5
+```
+
+`runtime_with_odin.launch.py` starts the lower-machine bridge, distance sensor,
+`robot_runtime`, `odin_ros_driver`, `slam_odin_bridge`, and the static PCD map
+publisher.
+
+Run the preset navigation plus three-direction step-climb test entry:
 
 ```bash
 ros2 run robot_runtime step_climb_forward

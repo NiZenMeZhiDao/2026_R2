@@ -1,6 +1,6 @@
 from geometry_msgs.msg import Twist
 
-from robot_runtime.libraries.pid import PidAxis, PidGains
+from robot_runtime.libraries.pid import AnglePidAxis, PidAxis, PidGains
 
 
 class ChassisPidTask:
@@ -9,7 +9,7 @@ class ChassisPidTask:
     def __init__(self):
         self._pid_x = PidAxis(PidGains(0.8, 0.0, 0.05, 0.5, 0.5))
         self._pid_y = PidAxis(PidGains(0.8, 0.0, 0.05, 0.5, 0.5))
-        self._pid_yaw = PidAxis(PidGains(1.2, 0.0, 0.08, 1.2, 0.5))
+        self._pid_yaw = AnglePidAxis(PidGains(1.2, 0.0, 0.08, 1.2, 0.5))
 
     def reset(self):
         self._pid_x.reset()
@@ -41,4 +41,3 @@ def _read_relative_error(pose_error):
     if len(values) < 3:
         raise ValueError('relative pose error must contain x, y, yaw')
     return float(values[0]), float(values[1]), float(values[2])
-

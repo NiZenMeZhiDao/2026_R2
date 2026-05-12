@@ -4,6 +4,7 @@ from rclpy.node import Node
 from sensor_msgs.msg import Imu
 from std_msgs.msg import Bool, Float32MultiArray, Int32, String
 
+from robot_runtime.debug_context import format_debug_context
 from robot_runtime.runtime_core import RuntimeCore
 
 
@@ -12,9 +13,15 @@ class RobotRuntimeNode(Node):
 
     def __init__(self):
         super().__init__('robot_runtime_node')
+        self.declare_parameter('debug_period_sec', 0.5)
+        debug_period = float(self.get_parameter('debug_period_sec').value)
         self.core = RuntimeCore(self)
         self.context = self.core.context
         self.body = self.core.body
+        self.debug_pub = self.create_publisher(String, 'runtime/debug', 10)
+        self.debug_timer = None
+        if debug_period > 0.0:
+            self.debug_timer = self.create_timer(debug_period, self._publish_debug_context)
 
         self._create_external_driver_subscriptions()
         self.get_logger().info(
@@ -32,8 +39,15 @@ class RobotRuntimeNode(Node):
         self.create_subscription(Int32, 'current_state', self._suspension_state_cb, 10)
         self.create_subscription(String, 'suspension/status', self._suspension_status_cb, 10)
         self.create_subscription(PoseStamped, 'robot_pose', self._robot_pose_cb, 10)
+        self.create_subscription(PoseStamped, 'robot_pose_odom', self._robot_pose_odom_cb, 10)
         self.create_subscription(Imu, 'imu/data', self._imu_cb, 10)
         self.create_subscription(String, 'nav/status', self._nav_status_cb, 10)
+        self.create_subscription(
+            String,
+            'localization/status',
+            self._localization_status_cb,
+            10,
+        )
         self.create_subscription(Int32, 'direction', self._direction_cb, 10)
         self.create_subscription(Bool, 'emergency_stop', self._emergency_stop_cb, 10)
 
@@ -52,17 +66,28 @@ class RobotRuntimeNode(Node):
     def _robot_pose_cb(self, msg):
         self.core.update_robot_pose(msg)
 
+    def _robot_pose_odom_cb(self, msg):
+        self.core.update_robot_pose_odom(msg)
+
     def _imu_cb(self, msg):
         self.core.update_imu(msg)
 
     def _nav_status_cb(self, msg):
         self.core.update_nav_status(msg.data)
 
+    def _localization_status_cb(self, msg):
+        self.core.update_localization_status(msg.data)
+
     def _direction_cb(self, msg):
-        self.core.update_direction(msg.data)
+        self.core.set_stepmode(True, msg.data)
 
     def _emergency_stop_cb(self, msg):
         self.core.set_emergency_stop(msg.data)
+
+    def _publish_debug_context(self):
+        msg = String()
+        msg.data = format_debug_context(self.context)
+        self.debug_pub.publish(msg)
 
 
 def main(args=None):
@@ -73,11 +98,9 @@ def main(args=None):
     except KeyboardInterrupt:
         pass
     finally:
-        node.core.stop_all()
+        node.core.stop()
         node.destroy_node()
         rclpy.shutdown()
 
-
 if __name__ == '__main__':
     main()
-

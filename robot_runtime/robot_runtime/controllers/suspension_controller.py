@@ -21,27 +21,28 @@ class SuspensionController(ExclusiveController):
     def stop(self, owner):
         self.require_owner(owner)
         if self._context.wheel_heights:
-            self._publish_heights(self._context.wheel_heights[:4], owner)
+            return self._publish_heights(self._context.wheel_heights[:4], owner)
+        return None
 
     def set_all_height(self, height, owner=None):
-        self._publish_heights([height, height, height, height], owner)
+        return self._publish_heights([height, height, height, height], owner)
 
     def set_wheel_heights(self, heights, owner=None):
-        self._publish_heights(heights, owner)
+        return self._publish_heights(heights, owner)
 
     def set_front_height(self, height, owner=None):
         self.require_owner(owner)
         targets = self._current_or_default()
         targets[0] = float(height)
         targets[1] = float(height)
-        self._publish_heights(targets, owner)
+        return self._publish_heights(targets, owner)
 
     def set_rear_height(self, height, owner=None):
         self.require_owner(owner)
         targets = self._current_or_default()
         targets[2] = float(height)
         targets[3] = float(height)
-        self._publish_heights(targets, owner)
+        return self._publish_heights(targets, owner)
 
     def wait_height_reached(self, target, tolerance=20.0, timeout_sec=2.0):
         deadline = time.monotonic() + timeout_sec
@@ -69,6 +70,7 @@ class SuspensionController(ExclusiveController):
         msg.data = [float(height) for height in heights[:4]]
         self._context.suspension_target = list(msg.data)
         self._pub_action.publish(msg)
+        return msg
 
 
 def _target_list(target):

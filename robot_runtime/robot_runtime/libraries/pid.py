@@ -1,5 +1,6 @@
 import time
 from dataclasses import dataclass
+import math
 
 
 @dataclass
@@ -27,6 +28,7 @@ class PidAxis:
 
     def update(self, error, now=None):
         now = time.monotonic() if now is None else now
+        error = float(error)
         if self.previous_time is None:
             dt = 0.0
         else:
@@ -40,7 +42,7 @@ class PidAxis:
                     -self.gains.integral_limit,
                     self.gains.integral_limit,
                 )
-            derivative = (error - self.previous_error) / dt
+            derivative = self._error_delta(error) / dt
         else:
             derivative = 0.0
 
@@ -54,7 +56,32 @@ class PidAxis:
         )
         return _clamp(output, -self.gains.output_limit, self.gains.output_limit)
 
+    def _error_delta(self, error):
+        return error - self.previous_error
+
+
+class AnglePidAxis(PidAxis):
+    """PID helper for wrapped radian errors such as yaw."""
+
+    def update(self, error, now=None):
+        error = float(error)
+        if self.previous_time is None:
+            continuous_error = wrap_angle(error)
+        else:
+            continuous_error = self.previous_error + wrap_angle(error - self.previous_error)
+        return super().update(continuous_error, now)
+
+    def _error_delta(self, error):
+        return wrap_angle(error - self.previous_error)
+
+
+def wrap_angle(angle):
+    """Wrap a radian angle into [-pi, pi) so yaw error stays continuous."""
+    wrapped = (float(angle) + math.pi) % (2.0 * math.pi) - math.pi
+    if wrapped == -math.pi and float(angle) > 0.0:
+        return math.pi
+    return wrapped
+
 
 def _clamp(value, lower, upper):
     return max(lower, min(upper, value))
-

@@ -1,0 +1,23 @@
+odin_localization_bridge:
+  ros__parameters:
+    odometry_topic: /odin1/odometry
+    imu_topic: /odin1/imu
+    output_pose_map_topic: /robot_pose
+    output_pose_odom_topic: /robot_pose_odom
+    output_imu_topic: /imu/data
+    localization_status_topic: /localization/status
+    map_frame: map
+    odom_frame: odom
+    base_frame: odin1_base_link
+    publish_odom_pose: true
+    republish_imu: true
+    require_map_transform: true
+    tf_lookup_timeout_sec: 0.05
+    status_period_sec: 0.5
+
+pcd_map_publisher:
+  ros__parameters:
+    pcd_path: ""
+    map_topic: /odin1/map
+    map_frame: map
+    publish_period_sec: 2.0
