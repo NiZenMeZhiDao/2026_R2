@@ -1,0 +1,85 @@
+{
+  "version": "2.0.0",
+  "presentation": {
+    "echo": true,
+    "reveal": "always",
+    "focus": false,
+    "panel": "dedicated",
+    "showReuseMessage": false
+  },
+  "tasks": [
+    {
+      "label": "build",
+      "type": "shell",
+      "command": "colcon build --packages-skip odin_ros_driver && source install/setup.zsh",
+      "problemMatcher": []
+    },
+    {
+      "label": "run",
+      "type": "shell",
+      "command": "source install/setup.zsh && ros2 launch robot_runtime runtime_with_odin.launch.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "launch: runtime_with_odin",
+      "type": "shell",
+      "command": "source install/setup.zsh && ros2 launch robot_runtime runtime_with_odin.launch.py",
+      "problemMatcher": []
+    },
+    {
+      "label": "run: step_climb_forward",
+      "type": "shell",
+      "command": "source install/setup.zsh && ros2 run robot_runtime step_climb_forward",
+      "problemMatcher": []
+    },
+    {
+      "label": "Monitor",
+      "dependsOrder": "parallel",
+      "dependsOn": ["runtime_debug", "tx", "rx", "sensor"]
+    },
+    {
+      "label": "tx",
+      "type": "shell",
+      "command": "source install/setup.zsh && ros2 topic echo /t0x0102_action",
+      "presentation": {
+        "panel": "new",
+        "focus": true,
+        "reveal": "always",
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "rx",
+      "type": "shell",
+      "command": "source install/setup.zsh && ros2 topic echo /r0x0201",
+      "presentation": {
+        "panel": "new",
+        "focus": true,
+        "reveal": "always",
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "sensor",
+      "type": "shell",
+      "command": "source install/setup.zsh && ros2 topic echo /sensor_distances",
+      "presentation": {
+        "panel": "new",
+        "focus": true,
+        "reveal": "always",
+        "showReuseMessage": false
+      }
+    },
+    {
+      "label": "runtime_debug",
+      "type": "shell",
+      "command": "source install/setup.zsh && ros2 topic echo /runtime/debug",
+      "presentation": {
+        "panel": "new",
+        "focus": true,
+        "reveal": "always",
+        "showReuseMessage": false
+      }
+    }
+  ]
+}
