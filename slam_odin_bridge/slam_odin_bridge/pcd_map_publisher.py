@@ -35,13 +35,24 @@ class PcdMapPublisher(Node):
 
     def _load_map(self):
         if not self.pcd_path:
-            raise RuntimeError('pcd_path parameter is required')
+            self.get_logger().warning('pcd_path is empty, publishing an empty map')
+            return self._build_pointcloud2([])
         if not os.path.exists(self.pcd_path):
-            raise RuntimeError(f'PCD file does not exist: {self.pcd_path}')
+            self.get_logger().warning(
+                f'PCD file does not exist: {self.pcd_path}, publishing an empty map'
+            )
+            return self._build_pointcloud2([])
 
         header, data_offset = _read_pcd_header(self.pcd_path)
         points = _read_pcd_points(self.pcd_path, header, data_offset)
 
+        msg = self._build_pointcloud2(points)
+        self.get_logger().info(
+            f'Loaded {msg.width} map points from {self.pcd_path}; publishing on {self.map_topic}'
+        )
+        return msg
+
+    def _build_pointcloud2(self, points):
         msg = PointCloud2()
         msg.header.frame_id = self.map_frame
         msg.height = 1
@@ -57,10 +68,6 @@ class PcdMapPublisher(Node):
         msg.point_step = 16
         msg.row_step = msg.point_step * msg.width
         msg.data = b''.join(struct.pack('<ffff', *point) for point in points)
-
-        self.get_logger().info(
-            f'Loaded {msg.width} map points from {self.pcd_path}; publishing on {self.map_topic}'
-        )
         return msg
 
     def _publish_map(self):

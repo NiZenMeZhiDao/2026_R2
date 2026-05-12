@@ -16,7 +16,7 @@ class RobotRuntimeNode(Node):
         self.declare_parameter('debug_period_sec', 0.5)
         debug_period = float(self.get_parameter('debug_period_sec').value)
         self.core = RuntimeCore(self)
-        self.context = self.core.context
+        self.runtime_context = self.core.context
         self.body = self.core.body
         self.debug_pub = self.create_publisher(String, 'runtime/debug', 10)
         self.debug_timer = None
@@ -86,7 +86,7 @@ class RobotRuntimeNode(Node):
 
     def _publish_debug_context(self):
         msg = String()
-        msg.data = format_debug_context(self.context)
+        msg.data = format_debug_context(self.runtime_context)
         self.debug_pub.publish(msg)
 
 
