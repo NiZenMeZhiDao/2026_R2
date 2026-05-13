@@ -59,15 +59,12 @@ def test_run_task_is_easy_to_rewrite_top_level_skill_sequence():
     run_task(core)
 
     assert _find_calls(core, 'move_to') == [
-        ('move_to', 1.0, 0.0, 0.0, 10.0),
-        ('move_to', 1.0, 0.6, 1.5708, 10.0),
-        ('move_to', 1.0, -0.6, -1.5708, 10.0),
+        ('move_to', 1.2, 0.0, 1.5708, 10.0),
+        ('move_to', 1.2, 1.2, 0.0, 10.0),
     ]
     assert ('set_stepmode', False, 0) in core.calls
     assert ('set_height', 30.0) in core.calls
-    assert ('set_stepmode', True, 0) in core.calls
-    assert ('set_stepmode', True, 1) in core.calls
-    assert ('set_stepmode', True, -1) in core.calls
+    assert _find_calls(core, 'set_stepmode').count(('set_stepmode', True, 0)) == 3
 
 
 def test_climb_step_holds_forward_reference_y_and_theta():

@@ -26,6 +26,10 @@ slam_odin_bridge
 transform Odin odometry into `map`. Until then `/localization/status` reports
 `odom_only`.
 
+The current robot mounts the Odin device facing backward, so the default
+`config/param.yaml` publishes runtime poses with `x/y` reversed and yaw rotated
+by 180 degrees. The raw `/odin1/odometry` topic is still left untouched.
+
 ## Run
 
 Bridge an already-running Odin driver:
@@ -41,4 +45,3 @@ Start the Odin driver and the bridge together:
 ros2 launch slam_odin_bridge odin_external_bringup.launch.py \
   pcd_path:=/home/xiexiang/2026_R2/slam_odin/map.pcd
 ```
-

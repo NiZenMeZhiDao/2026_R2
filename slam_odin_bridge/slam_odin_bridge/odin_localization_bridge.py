@@ -7,6 +7,7 @@ from nav_msgs.msg import Odometry
 from rclpy.duration import Duration
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
+from slam_odin_bridge.pose_math import correct_mount_pose
 from std_msgs.msg import String
 from tf2_ros import Buffer, TransformException, TransformListener
 
@@ -29,6 +30,8 @@ class OdinLocalizationBridge(Node):
         self.declare_parameter('publish_odom_pose', True)
         self.declare_parameter('republish_imu', True)
         self.declare_parameter('require_map_transform', True)
+        self.declare_parameter('reverse_mount_xy', False)
+        self.declare_parameter('reverse_mount_yaw', False)
         self.declare_parameter('tf_lookup_timeout_sec', 0.05)
         self.declare_parameter('status_period_sec', 0.5)
 
@@ -44,6 +47,8 @@ class OdinLocalizationBridge(Node):
         self.publish_odom_pose = bool(self.get_parameter('publish_odom_pose').value)
         self.republish_imu = bool(self.get_parameter('republish_imu').value)
         self.require_map_transform = bool(self.get_parameter('require_map_transform').value)
+        self.reverse_mount_xy = bool(self.get_parameter('reverse_mount_xy').value)
+        self.reverse_mount_yaw = bool(self.get_parameter('reverse_mount_yaw').value)
         self.tf_lookup_timeout = Duration(
             seconds=float(self.get_parameter('tf_lookup_timeout_sec').value)
         )
@@ -78,7 +83,13 @@ class OdinLocalizationBridge(Node):
             odom_pose.header.frame_id = self.odom_frame
 
         if self.publish_odom_pose:
-            self.odom_pose_pub.publish(odom_pose)
+            self.odom_pose_pub.publish(
+                correct_mount_pose(
+                    odom_pose,
+                    reverse_xy=self.reverse_mount_xy,
+                    reverse_yaw=self.reverse_mount_yaw,
+                )
+            )
 
         try:
             if odom_pose.header.frame_id == self.map_frame:
@@ -93,7 +104,13 @@ class OdinLocalizationBridge(Node):
                 map_pose = _transform_pose(odom_pose, transform)
 
             map_pose.header.frame_id = self.map_frame
-            self.map_pose_pub.publish(map_pose)
+            self.map_pose_pub.publish(
+                correct_mount_pose(
+                    map_pose,
+                    reverse_xy=self.reverse_mount_xy,
+                    reverse_yaw=self.reverse_mount_yaw,
+                )
+            )
             self._set_status('localized')
         except TransformException as exc:
             if self.require_map_transform:
@@ -103,7 +120,13 @@ class OdinLocalizationBridge(Node):
                 )
             else:
                 odom_pose.header.frame_id = self.map_frame
-                self.map_pose_pub.publish(odom_pose)
+                self.map_pose_pub.publish(
+                    correct_mount_pose(
+                        odom_pose,
+                        reverse_xy=self.reverse_mount_xy,
+                        reverse_yaw=self.reverse_mount_yaw,
+                    )
+                )
                 self._set_status('localized_unaligned')
 
     def _imu_cb(self, msg):

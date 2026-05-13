@@ -1,15 +1,16 @@
 from geometry_msgs.msg import Twist
 
 from robot_runtime.libraries.pid import AnglePidAxis, PidAxis, PidGains
+from robot_runtime.pid_config import pid_gains
 
 
 class ChassisPidTask:
     """Task-side PID calculator for relative chassis pose correction."""
 
-    def __init__(self):
-        self._pid_x = PidAxis(PidGains(0.8, 0.0, 0.05, 0.5, 0.5))
-        self._pid_y = PidAxis(PidGains(0.8, 0.0, 0.05, 0.5, 0.5))
-        self._pid_yaw = AnglePidAxis(PidGains(1.2, 0.0, 0.08, 1.2, 0.5))
+    def __init__(self, x_gains=None, y_gains=None, yaw_gains=None):
+        self._pid_x = PidAxis(x_gains or pid_gains('chassis_pose', 'x'))
+        self._pid_y = PidAxis(y_gains or pid_gains('chassis_pose', 'y'))
+        self._pid_yaw = AnglePidAxis(yaw_gains or pid_gains('chassis_pose', 'yaw'))
 
     def reset(self):
         self._pid_x.reset()

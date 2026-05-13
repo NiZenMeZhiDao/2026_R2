@@ -2,6 +2,7 @@ from dataclasses import dataclass, field
 
 from robot_runtime.libraries.pid import AnglePidAxis, PidAxis, PidGains
 from robot_runtime.libraries.suspension_math import SuspensionPhase
+from robot_runtime.pid_config import pid_gains
 
 
 @dataclass
@@ -17,10 +18,10 @@ class StepClimbConfig:
     correct_y: bool = True
     correct_wz: bool = True
     y_gains: PidGains = field(
-        default_factory=lambda: PidGains(0.8, 0.0, 0.05, 0.5, 0.5)
+        default_factory=lambda: pid_gains('step_climb', 'y')
     )
     wz_gains: PidGains = field(
-        default_factory=lambda: PidGains(1.2, 0.0, 0.08, 1.2, 0.5)
+        default_factory=lambda: pid_gains('step_climb', 'wz')
     )
 
     @classmethod

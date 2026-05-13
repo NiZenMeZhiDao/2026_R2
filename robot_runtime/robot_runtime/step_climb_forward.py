@@ -27,7 +27,7 @@ def main(args=None):
 
 def run_task(core):
     """Top-level task example: edit this function into the real field routine."""
-    # Go to the forward stair start point, then climb forward.
+    # Current field test uses forward stair-climb mode at every waypoint.
     # core.move_to(x=1.00, y=0.00, theta=0.00, timeout=MOVE_TIMEOUT)
     climb_step(core, StepClimbConfig.forward(speed=0.5))
 
@@ -35,13 +35,17 @@ def run_task(core):
     core.set_stepmode(False)
     core.set_height(30.0)
 
-    # Go to the left stair start point, then climb left.
+    # Move to the second test waypoint, then climb forward again.
     core.move_to(x=1.20, y=0.00, theta=1.5708, timeout=MOVE_TIMEOUT)
     climb_step(core, StepClimbConfig.forward(speed=0.5))
+    core.set_stepmode(False)
+    core.set_height(30.0)
 
-    # Go to the right stair start point, then climb right.
+    # Move to the third test waypoint, then climb forward again.
     core.move_to(x=1.20, y=1.20, theta=0, timeout=MOVE_TIMEOUT)
     climb_step(core, StepClimbConfig.forward(speed=0.5))
+    core.set_stepmode(False)
+    core.set_height(30.0)
 
     core.stop()
 
