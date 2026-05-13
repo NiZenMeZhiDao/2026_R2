@@ -34,15 +34,21 @@ def run_task(core):
     # Example of a simple mode switch between navigation segments.
     core.set_stepmode(False)
     core.set_height(30.0)
+    if not _localization_ready(core):
+        _log_info(core, 'Skip move_to waypoints: localization is not ready')
+        core.stop()
+        return
 
     # Move to the second test waypoint, then climb forward again.
-    core.move_to(x=1.20, y=0.00, theta=1.5708, timeout=MOVE_TIMEOUT)
+    if not _move_to_or_stop(core, x=1.20, y=0.00, theta=1.5708):
+        return
     climb_step(core, StepClimbConfig.forward(speed=0.5))
     core.set_stepmode(False)
     core.set_height(30.0)
 
     # Move to the third test waypoint, then climb forward again.
-    core.move_to(x=1.20, y=1.20, theta=0, timeout=MOVE_TIMEOUT)
+    if not _move_to_or_stop(core, x=1.20, y=1.20, theta=0):
+        return
     climb_step(core, StepClimbConfig.forward(speed=0.5))
     core.set_stepmode(False)
     core.set_height(30.0)
@@ -108,6 +114,27 @@ def _log_phase(core, result):
         if node is not None:
             node.get_logger().info('Suspension phase: %s' % phase.name)
         core._step_climb_phase = phase
+
+
+def _move_to_or_stop(core, x, y, theta):
+    try:
+        core.move_to(x=x, y=y, theta=theta, timeout=MOVE_TIMEOUT)
+        return True
+    except TimeoutError as exc:
+        _log_info(core, 'Stop task: %s' % exc)
+        core.stop()
+        return False
+
+
+def _localization_ready(core):
+    context = getattr(core, 'context', None)
+    return bool(getattr(context, 'localization_ready', False))
+
+
+def _log_info(core, message):
+    node = getattr(core, '_node', None)
+    if node is not None:
+        node.get_logger().info(str(message))
 
 
 def _spin_core_once(core):

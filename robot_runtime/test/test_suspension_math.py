@@ -46,7 +46,7 @@ def test_idle_can_start_up_with_only_forward_trigger_distance_valid():
         ],
     )
 
-    for _ in range(5):
+    for _ in range(2):
         result = math_lib.tick(context)
 
     assert result['phase'] == SuspensionPhase.UP_1_PREPARE

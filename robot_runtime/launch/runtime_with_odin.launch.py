@@ -28,7 +28,7 @@ def generate_launch_description():
     )
     pcd_path_arg = DeclareLaunchArgument(
         'pcd_path',
-        default_value='/home/xiexiang/2026_R2/slam_odin/map.pcd',
+        default_value=os.path.expanduser('~/2026_R2/slam_odin/map.pcd'),
         description='Path to the static PCD map published on /odin1/map.',
     )
     debug_period_arg = DeclareLaunchArgument(

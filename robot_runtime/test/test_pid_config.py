@@ -39,8 +39,8 @@ def test_step_climb_config_uses_pid_config_defaults():
 
     config = StepClimbConfig.forward()
 
-    assert config.y_gains.kp == 0.8
-    assert config.wz_gains.kp == 1.2
+    assert config.y_gains.kp == pid_gains('step_climb', 'y').kp
+    assert config.wz_gains.kp == pid_gains('step_climb', 'wz').kp
 
 
 def test_chassis_pid_task_accepts_explicit_test_gains():

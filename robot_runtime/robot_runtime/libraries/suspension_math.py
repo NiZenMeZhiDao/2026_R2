@@ -33,6 +33,7 @@ class SuspensionConfig:
     init_height: float = 30.0
     height_tolerance: float = 20.0
     step_detect_threshold: float = 200.0
+    idle_trigger_stable_ticks: int = 2
 
 
 @dataclass
@@ -89,9 +90,19 @@ class SuspensionMath:
             down_distance = _get_v_distance(context, v_distances_idx, v0)
             cond_up = _is_valid_number(up_distance) and up_distance < 200.0
             cond_down = _is_valid_number(down_distance) and down_distance > 200.0
-            if _is_stable(self.state, cond_up, 'idle_to_up'):
+            if _is_stable(
+                self.state,
+                cond_up,
+                'idle_to_up',
+                threshold=self.config.idle_trigger_stable_ticks,
+            ):
                 self.state.phase = SuspensionPhase.UP_1_PREPARE
-            elif _is_stable(self.state, cond_down, 'idle_to_down'):
+            elif _is_stable(
+                self.state,
+                cond_down,
+                'idle_to_down',
+                threshold=self.config.idle_trigger_stable_ticks,
+            ):
                 self.state.phase = SuspensionPhase.DOWN_1_PREPARE
 
         elif phase == SuspensionPhase.UP_1_PREPARE:

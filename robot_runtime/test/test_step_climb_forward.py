@@ -15,6 +15,7 @@ class FakeCore:
             robot_y=0.0,
             robot_theta=0.0,
             suspension_target=[],
+            localization_ready=True,
         )
         self.last_suspension_result = None
         self.pose_after_first_tick = None
@@ -65,6 +66,17 @@ def test_run_task_is_easy_to_rewrite_top_level_skill_sequence():
     assert ('set_stepmode', False, 0) in core.calls
     assert ('set_height', 30.0) in core.calls
     assert _find_calls(core, 'set_stepmode').count(('set_stepmode', True, 0)) == 3
+
+
+def test_run_task_stops_after_first_climb_when_localization_is_not_ready():
+    core = FakeCore()
+    core.context.localization_ready = False
+
+    run_task(core)
+
+    assert _find_calls(core, 'move_to') == []
+    assert _find_calls(core, 'stop')
+    assert _find_calls(core, 'set_stepmode').count(('set_stepmode', True, 0)) == 1
 
 
 def test_climb_step_holds_forward_reference_y_and_theta():

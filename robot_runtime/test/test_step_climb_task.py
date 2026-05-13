@@ -41,7 +41,11 @@ class FakeCore:
 
 def test_forward_step_climb_keeps_base_speed_and_corrects_y_wz():
     core = FakeCore()
-    task = StepClimbTask(core, StepClimbConfig.forward(speed=0.2))
+    task = StepClimbTask(core, StepClimbConfig.forward(
+        speed=0.2,
+        y_gains=_gains(0.8, 0.0, 0.05, 0.5, 0.5),
+        wz_gains=_gains(1.2, 0.0, 0.08, 1.2, 0.5),
+    ))
 
     result = task.tick((0.0, 0.1, -0.2), now=1.0)
 
@@ -54,7 +58,12 @@ def test_forward_step_climb_keeps_base_speed_and_corrects_y_wz():
 
 def test_step_climb_can_extend_to_left_direction_and_custom_speed():
     core = FakeCore()
-    config = StepClimbConfig.left(speed=0.15, base_vx=0.01, correct_y=False)
+    config = StepClimbConfig.left(
+        speed=0.15,
+        base_vx=0.01,
+        correct_y=False,
+        wz_gains=_gains(1.2, 0.0, 0.08, 1.2, 0.5),
+    )
     task = StepClimbTask(core, config)
 
     result = task.tick((0.0, 0.3, 0.1), now=1.0)
@@ -66,7 +75,12 @@ def test_step_climb_can_extend_to_left_direction_and_custom_speed():
 
 def test_step_climb_can_extend_to_right_direction_and_disable_wz_pid():
     core = FakeCore()
-    config = StepClimbConfig.right(speed=0.18, base_wz=0.03, correct_wz=False)
+    config = StepClimbConfig.right(
+        speed=0.18,
+        base_wz=0.03,
+        correct_wz=False,
+        y_gains=_gains(0.8, 0.0, 0.05, 0.5, 0.5),
+    )
     task = StepClimbTask(core, config)
 
     result = task.tick((0.0, -0.1, 0.2), now=1.0)
@@ -143,4 +157,14 @@ def _close_list(values, expected, tolerance=1e-9):
     return all(
         abs(float(value) - float(target)) <= tolerance
         for value, target in zip(values, expected)
+    )
+
+
+def _gains(kp, ki, kd, output_limit, integral_limit):
+    return SimpleNamespace(
+        kp=kp,
+        ki=ki,
+        kd=kd,
+        output_limit=output_limit,
+        integral_limit=integral_limit,
     )

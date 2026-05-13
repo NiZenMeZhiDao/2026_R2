@@ -22,9 +22,10 @@ slam_odin_bridge
   -> /odin1/map        PointCloud2 static map
 ```
 
-`/robot_pose` is only published as a map-frame pose after the bridge can
-transform Odin odometry into `map`. Until then `/localization/status` reports
-`odom_only`.
+By default the bridge can fall back to publishing odometry as an unaligned
+runtime pose when no `map` transform is available. In that case
+`/localization/status` reports `localized_unaligned`, and move targets are in
+the current odometry frame rather than a relocalized map frame.
 
 The current robot mounts the Odin device facing backward, so the default
 `config/param.yaml` publishes runtime poses with `x/y` reversed and yaw rotated
@@ -36,12 +37,12 @@ Bridge an already-running Odin driver:
 
 ```bash
 ros2 launch slam_odin_bridge odin_bridge.launch.py \
-  pcd_path:=/home/xiexiang/2026_R2/slam_odin/map.pcd
+  pcd_path:=~/2026_R2/slam_odin/map.pcd
 ```
 
 Start the Odin driver and the bridge together:
 
 ```bash
 ros2 launch slam_odin_bridge odin_external_bringup.launch.py \
-  pcd_path:=/home/xiexiang/2026_R2/slam_odin/map.pcd
+  pcd_path:=~/2026_R2/slam_odin/map.pcd
 ```
