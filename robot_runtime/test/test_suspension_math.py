@@ -31,6 +31,27 @@ def test_idle_ignores_incomplete_distance_frame():
     assert result['phase'] == SuspensionPhase.IDLE
 
 
+def test_idle_can_start_up_with_only_forward_trigger_distance_valid():
+    math_lib = SuspensionMath()
+    context = _context(
+        filtered_distances=[
+            float('nan'),
+            100.0,
+            float('nan'),
+            float('nan'),
+            float('nan'),
+            float('nan'),
+            float('nan'),
+            float('nan'),
+        ],
+    )
+
+    for _ in range(5):
+        result = math_lib.tick(context)
+
+    assert result['phase'] == SuspensionPhase.UP_1_PREPARE
+
+
 def test_direction_is_latched_while_sequence_runs():
     math_lib = SuspensionMath()
     math_lib.state.phase = SuspensionPhase.UP_4_RETRACT_FRONT

@@ -85,13 +85,14 @@ class SuspensionMath:
         v0, v1, v2, v3 = 0, 1, 2, 3
 
         if phase == SuspensionPhase.IDLE:
-            if _distance_ready(context, v_distances_idx):
-                cond_up = _get_v_distance(context, v_distances_idx, v1) < 200.0
-                cond_down = _get_v_distance(context, v_distances_idx, v0) > 200.0
-                if _is_stable(self.state, cond_up, 'idle_to_up'):
-                    self.state.phase = SuspensionPhase.UP_1_PREPARE
-                elif _is_stable(self.state, cond_down, 'idle_to_down'):
-                    self.state.phase = SuspensionPhase.DOWN_1_PREPARE
+            up_distance = _get_v_distance(context, v_distances_idx, v1)
+            down_distance = _get_v_distance(context, v_distances_idx, v0)
+            cond_up = _is_valid_number(up_distance) and up_distance < 200.0
+            cond_down = _is_valid_number(down_distance) and down_distance > 200.0
+            if _is_stable(self.state, cond_up, 'idle_to_up'):
+                self.state.phase = SuspensionPhase.UP_1_PREPARE
+            elif _is_stable(self.state, cond_down, 'idle_to_down'):
+                self.state.phase = SuspensionPhase.DOWN_1_PREPARE
 
         elif phase == SuspensionPhase.UP_1_PREPARE:
             self.state.target_height = self.config.lift_low
