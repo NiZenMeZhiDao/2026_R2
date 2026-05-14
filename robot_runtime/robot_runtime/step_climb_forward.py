@@ -104,15 +104,11 @@ def _pose_error_from_reference(core, reference_pose, move_direction):
     dx = reference_pose[0] - current[0]
     dy = reference_pose[1] - current[1]
     dtheta = wrap_angle(reference_pose[2] - current[2])
-    cos_heading = _cos(reference_pose[2])
-    sin_heading = _sin(reference_pose[2])
+    cos_heading = _cos(current[2])
+    sin_heading = _sin(current[2])
     forward_error = cos_heading * dx + sin_heading * dy
     left_error = -sin_heading * dx + cos_heading * dy
-
-    if int(move_direction) == 0:
-        return 0.0, left_error, dtheta
-
-    return 0.0, forward_error, dtheta
+    return forward_error, left_error, dtheta
 
 
 def _reference_pose_if_ready(core):

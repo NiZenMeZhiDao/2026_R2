@@ -50,6 +50,7 @@ class RobotContext:
     stepmode_direction_name: str = '前进'
     move_to_target: List[float] = field(default_factory=list)
     move_to_error: List[float] = field(default_factory=list)
+    move_to_body_error: List[float] = field(default_factory=list)
 
     relative_pose_error: List[float] = field(default_factory=list)
     last_pid_cmd: List[float] = field(default_factory=list)

@@ -104,7 +104,8 @@ def test_climb_step_holds_side_reference_x_and_theta():
     climb_step(core, StepClimbConfig.left(speed=0.0, base_vx=0.0, timeout=0.05))
 
     move_calls = _find_calls(core, 'move')
-    assert move_calls[-1][2] < 0.0
+    assert move_calls[-1][1] < 0.0
+    assert move_calls[-1][2] == 0.0
     assert move_calls[-1][3] > 0.0
 
 
@@ -114,6 +115,17 @@ def test_pose_error_from_reference_uses_body_frame_for_forward_motion():
 
     error = _pose_error_from_reference(core, (1.0, 2.0, 1.57079632679), 0)
 
+    assert abs(error[0]) < 1e-6
+    assert abs(error[1] - 0.1) < 1e-6
+
+
+def test_pose_error_from_reference_uses_current_heading_for_body_frame():
+    core = FakeCore()
+    core.context.robot_pose_map_xytheta = [0.1, 0.0, 1.57079632679]
+
+    error = _pose_error_from_reference(core, (0.0, 0.0, 1.57079632679), 0)
+
+    assert abs(error[0]) < 1e-6
     assert abs(error[1] - 0.1) < 1e-6
 
 

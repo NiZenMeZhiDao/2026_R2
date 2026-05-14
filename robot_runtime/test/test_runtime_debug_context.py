@@ -16,6 +16,7 @@ def test_debug_context_includes_control_and_sensor_details():
     context.stepmode_direction_name = '左'
     context.move_to_target = [1.0, 2.0, 0.5]
     context.move_to_error = [0.1, -0.2, 0.05]
+    context.move_to_body_error = [0.2, -0.1, 0.05]
 
     text = format_debug_context(context)
 
@@ -23,6 +24,7 @@ def test_debug_context_includes_control_and_sensor_details():
     assert '四个轮子高度指令' in text
     assert '上楼梯方向=左(1)' in text
     assert '位置误差dx=0.100' in text
+    assert '车体系move_to误差：forward=0.200, left=-0.100, yaw=0.050' in text
     assert '光电遮挡情况r0x0201前四个数据' in text
     assert 'r0x0201第5-8个数据' in text
     assert 'Monitor汇总' in text

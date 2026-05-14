@@ -159,6 +159,34 @@ def test_move_to_timeout_stops_motion(monkeypatch):
     assert core.body.chassis.commands[-1] == [0.0, 0.0, 0.0]
 
 
+def test_move_to_velocity_uses_body_frame_left_positive(monkeypatch):
+    monkeypatch.setattr('robot_runtime.runtime_core.RobotBody', FakeRobotBody)
+    core = RuntimeCore(FakeNode())
+    core.update_robot_pose(_pose('map', 0.0, 0.0, 0.0))
+    core.move_to(0.0, 1.0, 0.0, wait=False)
+
+    core.tick_skills()
+
+    assert core.context.move_to_error == [0.0, 1.0, 0.0]
+    assert core.context.move_to_body_error == [0.0, 1.0, 0.0]
+    assert core.body.chassis.commands[-1] == [0.0, 0.2, 0.0]
+
+
+def test_move_to_velocity_rotates_map_error_into_body_frame(monkeypatch):
+    monkeypatch.setattr('robot_runtime.runtime_core.RobotBody', FakeRobotBody)
+    core = RuntimeCore(FakeNode())
+    core.update_robot_pose(_pose('map', 0.0, 0.0, math.pi / 2.0))
+    core.move_to(1.0, 0.0, math.pi / 2.0, wait=False)
+
+    core.tick_skills()
+
+    assert abs(core.context.move_to_body_error[0]) < 1e-9
+    assert abs(core.context.move_to_body_error[1] + 1.0) < 1e-9
+    assert abs(core.body.chassis.commands[-1][0]) < 1e-9
+    assert core.body.chassis.commands[-1][1] == -0.2
+    assert abs(core.body.chassis.commands[-1][2]) < 1e-9
+
+
 def _pose(frame_id, x, y, yaw):
     half = yaw / 2.0
     return SimpleNamespace(

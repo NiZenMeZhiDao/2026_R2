@@ -11,6 +11,7 @@ def format_debug_context(context):
     odom = _padded(context.robot_pose_odom_xytheta, 3, float('nan'))
     move_target = _padded(context.move_to_target, 3, float('nan'))
     move_error = _padded(context.move_to_error, 3, float('nan'))
+    move_body_error = _padded(context.move_to_body_error, 3, float('nan'))
 
     return '\n'.join([
         '【机器人运行时调试信息】',
@@ -34,6 +35,11 @@ def format_debug_context(context):
             _fmt(move_error[0]),
             _fmt(move_error[1]),
             _fmt(move_error[2]),
+        ),
+        '车体系move_to误差：forward=%s, left=%s, yaw=%s' % (
+            _fmt(move_body_error[0]),
+            _fmt(move_body_error[1]),
+            _fmt(move_body_error[2]),
         ),
         'map定位：frame=%s, x=%s, y=%s, theta=%s' % (
             context.robot_pose_frame or '未知',

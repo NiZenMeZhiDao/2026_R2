@@ -60,7 +60,6 @@ def test_step_climb_can_extend_to_left_direction_and_custom_speed():
     core = FakeCore()
     config = StepClimbConfig.left(
         speed=0.15,
-        base_vx=0.01,
         correct_y=False,
         wz_gains=_gains(1.2, 0.0, 0.08, 1.2, 0.5),
     )
@@ -69,7 +68,7 @@ def test_step_climb_can_extend_to_left_direction_and_custom_speed():
     result = task.tick((0.0, 0.3, 0.1), now=1.0)
 
     assert core.directions == [1]
-    assert _close_list(result['velocity'], [0.01, 0.15, 0.12])
+    assert _close_list(result['velocity'], [0.0, 0.15, 0.12])
     assert core.suspension_count == 1
 
 
@@ -86,8 +85,22 @@ def test_step_climb_can_extend_to_right_direction_and_disable_wz_pid():
     result = task.tick((0.0, -0.1, 0.2), now=1.0)
 
     assert core.directions == [-1]
-    assert _close_list(result['velocity'], [0.12, -0.26, 0.03])
+    assert _close_list(result['velocity'], [0.0, -0.18, 0.03])
     assert core.suspension_count == 1
+
+
+def test_side_step_climb_uses_forward_error_to_correct_vx():
+    core = FakeCore()
+    config = StepClimbConfig.left(
+        speed=0.15,
+        y_gains=_gains(0.8, 0.0, 0.05, 0.5, 0.5),
+        correct_wz=False,
+    )
+    task = StepClimbTask(core, config)
+
+    result = task.tick((0.2, 0.3, 0.0), now=1.0)
+
+    assert _close_list(result['velocity'], [0.16, 0.15, 0.0])
 
 
 def test_step_climb_does_not_double_tick_when_core_has_background_timer():

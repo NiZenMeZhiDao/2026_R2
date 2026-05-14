@@ -30,10 +30,12 @@ class StepClimbConfig:
 
     @classmethod
     def left(cls, speed=0.12, **kwargs):
+        kwargs.setdefault('base_vx', 0.0)
         return cls(move_direction=1, base_vy=speed, **kwargs)
 
     @classmethod
     def right(cls, speed=0.12, **kwargs):
+        kwargs.setdefault('base_vx', 0.0)
         return cls(move_direction=-1, base_vy=-speed, **kwargs)
 
 
@@ -59,14 +61,25 @@ class StepClimbTask:
 
     def tick(self, pose_error=(0.0, 0.0, 0.0), now=None):
         """Run one task cycle and return the published command data."""
-        _, y_error, yaw_error = _read_pose_error(pose_error)
+        forward_error, left_error, yaw_error = _read_pose_error(pose_error)
 
         vx = self.config.base_vx
         vy = self.config.base_vy
         wz = self.config.base_wz
 
         if self.config.correct_y:
-            vy += self._pid_y.update(y_error, now)
+            correction = self._pid_y.update(
+                _cross_track_error(
+                    self.config.move_direction,
+                    forward_error,
+                    left_error,
+                ),
+                now,
+            )
+            if int(self.config.move_direction) == 0:
+                vy += correction
+            else:
+                vx += correction
         if self.config.correct_wz:
             wz += self._pid_wz.update(yaw_error, now)
 
@@ -118,6 +131,12 @@ def _read_pose_error(pose_error):
     if len(values) < 3:
         raise ValueError('pose_error must contain x, y and yaw')
     return float(values[0]), float(values[1]), float(values[2])
+
+
+def _cross_track_error(move_direction, forward_error, left_error):
+    if int(move_direction) == 0:
+        return left_error
+    return forward_error
 
 
 def _core_has_background_tick(core):

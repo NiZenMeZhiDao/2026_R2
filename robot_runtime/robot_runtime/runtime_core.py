@@ -133,6 +133,7 @@ class RuntimeCore:
         self.context.active_motion_skill = 'move'
         self.context.move_to_target = []
         self.context.move_to_error = []
+        self.context.move_to_body_error = []
         self._last_motion_publish_time = None
         return self._motion_skill.copy()
 
@@ -162,6 +163,7 @@ class RuntimeCore:
         self.context.active_motion_skill = 'move_to'
         self.context.move_to_target = [float(x), float(y), float(theta)]
         self.context.move_to_error = []
+        self.context.move_to_body_error = []
         self._last_motion_publish_time = None
         if not wait:
             return self._motion_skill.copy()
@@ -369,7 +371,11 @@ class RuntimeCore:
         sin_yaw = math.sin(current_yaw)
         forward_error = cos_yaw * dx + sin_yaw * dy
         left_error = -sin_yaw * dx + cos_yaw * dy
-        right_error = -left_error
+        self.context.move_to_body_error = [
+            float(forward_error),
+            float(left_error),
+            float(yaw_error),
+        ]
 
         done_xy = math.hypot(dx, dy) <= skill['xy_tolerance']
         done_yaw = abs(yaw_error) <= skill['theta_tolerance']
@@ -377,7 +383,7 @@ class RuntimeCore:
             return 0.0, 0.0, 0.0, True
 
         vx = _clamp(0.8 * forward_error, -skill['vx_limit'], skill['vx_limit'])
-        vy = _clamp(0.8 * right_error, -skill['vy_limit'], skill['vy_limit'])
+        vy = _clamp(0.8 * left_error, -skill['vy_limit'], skill['vy_limit'])
         wz = _clamp(1.2 * yaw_error, -skill['wz_limit'], skill['wz_limit'])
         return vx, vy, wz, False
 
