@@ -119,13 +119,11 @@ class OdinLocalizationBridge(Node):
         except TransformException as exc:
             if self.require_map_transform:
                 self._set_status('odom_only')
-                self.get_logger().debug(
-                    f'Cannot transform {odom_pose.header.frame_id} -> {self.map_frame}: {exc}'
-                )
             else:
-                odom_pose.header.frame_id = self.map_frame
-                self.map_pose_pub.publish(self._runtime_pose(odom_pose, 'map'))
-                self._set_status('localized_unaligned')
+                self._set_status('waiting_for_map')
+            self.get_logger().debug(
+                f'Cannot transform {odom_pose.header.frame_id} -> {self.map_frame}: {exc}'
+            )
 
     def _runtime_pose(self, sensor_pose, reference_key):
         base_pose = correct_mount_pose(
