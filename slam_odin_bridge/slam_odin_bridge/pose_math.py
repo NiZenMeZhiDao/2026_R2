@@ -86,6 +86,42 @@ def sensor_pose_to_base_pose(
     return base_pose
 
 
+def relative_pose_from_reference(current_pose, reference_pose):
+    """Express the current pose in the reference pose coordinate frame."""
+    relative_pose = deepcopy(current_pose)
+
+    current_orientation = current_pose.pose.orientation
+    reference_orientation = reference_pose.pose.orientation
+    current_q = (
+        current_orientation.x,
+        current_orientation.y,
+        current_orientation.z,
+        current_orientation.w,
+    )
+    reference_q = (
+        reference_orientation.x,
+        reference_orientation.y,
+        reference_orientation.z,
+        reference_orientation.w,
+    )
+    reference_inv_q = quat_conjugate(reference_q)
+
+    dx = float(current_pose.pose.position.x) - float(reference_pose.pose.position.x)
+    dy = float(current_pose.pose.position.y) - float(reference_pose.pose.position.y)
+    dz = float(current_pose.pose.position.z) - float(reference_pose.pose.position.z)
+    relative_position = rotate_vector((dx, dy, dz), reference_inv_q)
+    relative_orientation = quat_normalize(quat_multiply(reference_inv_q, current_q))
+
+    relative_pose.pose.position.x = relative_position[0]
+    relative_pose.pose.position.y = relative_position[1]
+    relative_pose.pose.position.z = relative_position[2]
+    relative_pose.pose.orientation.x = relative_orientation[0]
+    relative_pose.pose.orientation.y = relative_orientation[1]
+    relative_pose.pose.orientation.z = relative_orientation[2]
+    relative_pose.pose.orientation.w = relative_orientation[3]
+    return relative_pose
+
+
 def yaw_to_quaternion(yaw):
     half_yaw = float(yaw) / 2.0
     return (0.0, 0.0, math.sin(half_yaw), math.cos(half_yaw))

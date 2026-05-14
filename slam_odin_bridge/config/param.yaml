@@ -14,6 +14,7 @@ odin_localization_bridge:
     require_map_transform: false
     reverse_mount_xy: false
     reverse_mount_yaw: false
+    zero_pose_on_start: true
     tf_lookup_timeout_sec: 0.05
     status_period_sec: 0.5
 

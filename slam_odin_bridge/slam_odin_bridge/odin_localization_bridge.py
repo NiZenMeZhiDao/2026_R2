@@ -7,7 +7,7 @@ from nav_msgs.msg import Odometry
 from rclpy.duration import Duration
 from rclpy.node import Node
 from sensor_msgs.msg import Imu
-from slam_odin_bridge.pose_math import correct_mount_pose
+from slam_odin_bridge.pose_math import correct_mount_pose, relative_pose_from_reference
 from std_msgs.msg import String
 from tf2_ros import Buffer, TransformException, TransformListener
 
@@ -32,6 +32,7 @@ class OdinLocalizationBridge(Node):
         self.declare_parameter('require_map_transform', True)
         self.declare_parameter('reverse_mount_xy', False)
         self.declare_parameter('reverse_mount_yaw', False)
+        self.declare_parameter('zero_pose_on_start', True)
         self.declare_parameter('mount_base_to_odin_x', 0.0)
         self.declare_parameter('mount_base_to_odin_y', 0.0)
         self.declare_parameter('mount_base_to_odin_z', 0.0)
@@ -54,6 +55,7 @@ class OdinLocalizationBridge(Node):
         self.require_map_transform = bool(self.get_parameter('require_map_transform').value)
         self.reverse_mount_xy = bool(self.get_parameter('reverse_mount_xy').value)
         self.reverse_mount_yaw = bool(self.get_parameter('reverse_mount_yaw').value)
+        self.zero_pose_on_start = bool(self.get_parameter('zero_pose_on_start').value)
         self.mount_base_to_odin_x = float(self.get_parameter('mount_base_to_odin_x').value)
         self.mount_base_to_odin_y = float(self.get_parameter('mount_base_to_odin_y').value)
         self.mount_base_to_odin_z = float(self.get_parameter('mount_base_to_odin_z').value)
@@ -80,6 +82,8 @@ class OdinLocalizationBridge(Node):
 
         self._status = 'waiting_for_odom'
         self._last_logged_status = None
+        self._map_reference_pose = None
+        self._odom_reference_pose = None
         self.create_timer(status_period, self._publish_status)
 
         self.get_logger().info(
@@ -95,18 +99,7 @@ class OdinLocalizationBridge(Node):
             odom_pose.header.frame_id = self.odom_frame
 
         if self.publish_odom_pose:
-            self.odom_pose_pub.publish(
-                correct_mount_pose(
-                    odom_pose,
-                    reverse_xy=self.reverse_mount_xy,
-                    reverse_yaw=self.reverse_mount_yaw,
-                    base_to_sensor_x=self.mount_base_to_odin_x,
-                    base_to_sensor_y=self.mount_base_to_odin_y,
-                    base_to_sensor_z=self.mount_base_to_odin_z,
-                    base_to_sensor_yaw=self.mount_base_to_odin_yaw,
-                    output_frame_yaw=self.runtime_frame_yaw,
-                )
-            )
+            self.odom_pose_pub.publish(self._runtime_pose(odom_pose, 'odom'))
 
         try:
             if odom_pose.header.frame_id == self.map_frame:
@@ -121,18 +114,7 @@ class OdinLocalizationBridge(Node):
                 map_pose = _transform_pose(odom_pose, transform)
 
             map_pose.header.frame_id = self.map_frame
-            self.map_pose_pub.publish(
-                correct_mount_pose(
-                    map_pose,
-                    reverse_xy=self.reverse_mount_xy,
-                    reverse_yaw=self.reverse_mount_yaw,
-                    base_to_sensor_x=self.mount_base_to_odin_x,
-                    base_to_sensor_y=self.mount_base_to_odin_y,
-                    base_to_sensor_z=self.mount_base_to_odin_z,
-                    base_to_sensor_yaw=self.mount_base_to_odin_yaw,
-                    output_frame_yaw=self.runtime_frame_yaw,
-                )
-            )
+            self.map_pose_pub.publish(self._runtime_pose(map_pose, 'map'))
             self._set_status('localized')
         except TransformException as exc:
             if self.require_map_transform:
@@ -142,19 +124,32 @@ class OdinLocalizationBridge(Node):
                 )
             else:
                 odom_pose.header.frame_id = self.map_frame
-                self.map_pose_pub.publish(
-                    correct_mount_pose(
-                        odom_pose,
-                        reverse_xy=self.reverse_mount_xy,
-                        reverse_yaw=self.reverse_mount_yaw,
-                        base_to_sensor_x=self.mount_base_to_odin_x,
-                        base_to_sensor_y=self.mount_base_to_odin_y,
-                        base_to_sensor_z=self.mount_base_to_odin_z,
-                        base_to_sensor_yaw=self.mount_base_to_odin_yaw,
-                        output_frame_yaw=self.runtime_frame_yaw,
-                    )
-                )
+                self.map_pose_pub.publish(self._runtime_pose(odom_pose, 'map'))
                 self._set_status('localized_unaligned')
+
+    def _runtime_pose(self, sensor_pose, reference_key):
+        base_pose = correct_mount_pose(
+            sensor_pose,
+            reverse_xy=self.reverse_mount_xy,
+            reverse_yaw=self.reverse_mount_yaw,
+            base_to_sensor_x=self.mount_base_to_odin_x,
+            base_to_sensor_y=self.mount_base_to_odin_y,
+            base_to_sensor_z=self.mount_base_to_odin_z,
+            base_to_sensor_yaw=self.mount_base_to_odin_yaw,
+            output_frame_yaw=self.runtime_frame_yaw,
+        )
+        if not self.zero_pose_on_start:
+            return base_pose
+
+        reference_attr = '_%s_reference_pose' % reference_key
+        reference_pose = getattr(self, reference_attr)
+        if reference_pose is None:
+            reference_pose = deepcopy(base_pose)
+            setattr(self, reference_attr, reference_pose)
+
+        runtime_pose = relative_pose_from_reference(base_pose, reference_pose)
+        runtime_pose.header.frame_id = base_pose.header.frame_id
+        return runtime_pose
 
     def _imu_cb(self, msg):
         self.imu_pub.publish(msg)
