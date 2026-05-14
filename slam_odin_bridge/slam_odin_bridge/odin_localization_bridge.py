@@ -118,6 +118,11 @@ class OdinLocalizationBridge(Node):
             self._set_status('localized')
         except TransformException as exc:
             if self.require_map_transform:
+                # Odometry mode (custom_map_mode=0): map and odom share the same
+                # pose per Odin driver spec, so use odom pose as map pose directly.
+                map_pose = deepcopy(odom_pose)
+                map_pose.header.frame_id = self.map_frame
+                self.map_pose_pub.publish(self._runtime_pose(map_pose, 'map'))
                 self._set_status('odom_only')
             else:
                 self._set_status('waiting_for_map')

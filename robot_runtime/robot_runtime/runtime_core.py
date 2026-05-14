@@ -358,13 +358,16 @@ class RuntimeCore:
 
     def _compute_move_to_velocity(self, skill):
         pose = self.context.robot_pose_map or self.context.robot_pose
-        if not self.context.localization_ready:
+        ready = self.context.localization_ready or self.context.odom_ready
+        if not ready:
             self._publish_chassis_velocity(0.0, 0.0, 0.0)
-            self.context.last_error = 'move_to requires localization_ready'
+            self.context.last_error = 'move_to requires localization or odometry'
             return None
         if pose is None:
+            pose = self.context.robot_pose_odom
+        if pose is None:
             self._publish_chassis_velocity(0.0, 0.0, 0.0)
-            self.context.last_error = 'move_to requires robot_pose_map or robot_pose'
+            self.context.last_error = 'move_to requires robot_pose_map, robot_pose, or robot_pose_odom'
             return None
 
         current_x = float(pose.pose.position.x)

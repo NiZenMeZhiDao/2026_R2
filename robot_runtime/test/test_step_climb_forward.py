@@ -15,11 +15,16 @@ class FakeCore:
         self.context = SimpleNamespace(
             relative_pose_error=[0.0, 0.0, 0.0],
             robot_pose_map_xytheta=[0.0, 0.0, 0.0],
+            robot_pose_odom_xytheta=[],
             robot_x=0.0,
             robot_y=0.0,
             robot_theta=0.0,
+            odom_x=0.0,
+            odom_y=0.0,
+            odom_theta=0.0,
             suspension_target=[],
             localization_ready=True,
+            odom_ready=True,
         )
         self.last_suspension_result = None
         self.pose_after_first_tick = None
@@ -75,6 +80,7 @@ def test_run_task_is_easy_to_rewrite_top_level_skill_sequence():
 def test_run_task_stops_after_first_climb_when_localization_is_not_ready():
     core = FakeCore()
     core.context.localization_ready = False
+    core.context.odom_ready = False
 
     run_task(core)
 
