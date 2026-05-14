@@ -60,8 +60,8 @@ class SuspensionMath:
             return
         mapping = {
             0: MoveDirection.FORWARD,
-            -1: MoveDirection.LEFT,
-            1: MoveDirection.RIGHT,
+            1: MoveDirection.LEFT,
+            -1: MoveDirection.RIGHT,
         }
         self.state.direction = mapping.get(direction_value, MoveDirection.FORWARD)
 

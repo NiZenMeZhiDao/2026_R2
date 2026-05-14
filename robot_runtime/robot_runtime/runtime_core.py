@@ -489,6 +489,7 @@ def _spin_node_once(node):
     if hasattr(rclpy, 'ok') and not rclpy.ok():
         return
     try:
-        rclpy.spin_once(node, timeout_sec=0.0)
+        for _ in range(6):
+            rclpy.spin_once(node, timeout_sec=0.0)
     except Exception:
         return

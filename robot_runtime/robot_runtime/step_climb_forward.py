@@ -158,7 +158,10 @@ def _spin_core_once(core):
         return
     if hasattr(rclpy, 'ok') and not rclpy.ok():
         return
-    rclpy.spin_once(node, timeout_sec=0.0)
+    # Process a batch of pending callbacks so the suspension timer is not
+    # starved by high-frequency sensor subscriptions competing for spin_once.
+    for _ in range(6):
+        rclpy.spin_once(node, timeout_sec=0.0)
 
 
 def _cos(value):
