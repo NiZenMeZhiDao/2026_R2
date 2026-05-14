@@ -78,7 +78,7 @@ def test_move_skill_overwrites_previous_motion(monkeypatch):
     core.move(0.2, 0.3, 0.4)
     core.tick_skills()
 
-    assert core.body.chassis.commands == [[0.2, 0.3, 0.4]]
+    assert core.body.chassis.commands == [[0.32, 0.42, 0.55]]
 
 
 def test_stop_clears_active_skills_and_publishes_zero(monkeypatch):
@@ -169,7 +169,7 @@ def test_move_to_velocity_uses_body_frame_left_positive(monkeypatch):
 
     assert core.context.move_to_error == [0.0, 1.0, 0.0]
     assert core.context.move_to_body_error == [0.0, 1.0, 0.0]
-    assert core.body.chassis.commands[-1] == [0.0, 0.2, 0.0]
+    assert core.body.chassis.commands[-1] == [0.0, 0.32, 0.0]
 
 
 def test_move_to_velocity_rotates_map_error_into_body_frame(monkeypatch):
@@ -183,8 +183,20 @@ def test_move_to_velocity_rotates_map_error_into_body_frame(monkeypatch):
     assert abs(core.context.move_to_body_error[0]) < 1e-9
     assert abs(core.context.move_to_body_error[1] + 1.0) < 1e-9
     assert abs(core.body.chassis.commands[-1][0]) < 1e-9
-    assert core.body.chassis.commands[-1][1] == -0.2
+    assert core.body.chassis.commands[-1][1] == -0.32
     assert abs(core.body.chassis.commands[-1][2]) < 1e-9
+
+
+def test_chassis_deadzone_compensation_keeps_zero_commands_zero(monkeypatch):
+    monkeypatch.setattr('robot_runtime.runtime_core.RobotBody', FakeRobotBody)
+    core = RuntimeCore(FakeNode())
+
+    core.move(0.0, -0.1, 0.2)
+    core.tick_skills()
+    core.stop()
+
+    assert core.body.chassis.commands[0] == [0.0, -0.22, 0.35]
+    assert core.body.chassis.commands[-1] == [0.0, 0.0, 0.0]
 
 
 def _pose(frame_id, x, y, yaw):

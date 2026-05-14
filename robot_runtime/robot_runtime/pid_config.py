@@ -48,6 +48,10 @@ _DEFAULT_CONFIG = {
             'integral_limit': 0.5,
         },
     },
+    'chassis_deadzone': {
+        'xy': 0.12,
+        'wz': 0.15,
+    },
 }
 
 
@@ -59,6 +63,16 @@ def pid_gains(group, axis):
     except KeyError as exc:
         raise KeyError('missing PID config for %s.%s' % (group, axis)) from exc
     return _pid_gains_from_mapping(values)
+
+
+def chassis_deadzone():
+    """Return chassis feed-forward deadzone compensation values."""
+    config = load_pid_config()
+    values = config.get('chassis_deadzone', {})
+    return {
+        'xy': float(values.get('xy', 0.0)),
+        'wz': float(values.get('wz', 0.0)),
+    }
 
 
 @lru_cache(maxsize=1)

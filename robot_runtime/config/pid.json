@@ -37,5 +37,9 @@
       "output_limit": 2.0,
       "integral_limit": 0.5
     }
+  },
+  "chassis_deadzone": {
+    "xy": 0.12,
+    "wz": 0.15
   }
 }

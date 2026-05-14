@@ -3,6 +3,7 @@ import math
 import time as time_module
 
 from robot_runtime.libraries.suspension_math import SuspensionMath, SuspensionPhase
+from robot_runtime.pid_config import chassis_deadzone
 from robot_runtime.robot_body import RobotBody
 from robot_runtime.robot_context import RobotContext
 
@@ -16,6 +17,7 @@ class RuntimeCore:
         self.body = RobotBody(node, self.context)
         self.owner = 'runtime_core'
         self.suspension_math = SuspensionMath()
+        self._chassis_deadzone = chassis_deadzone()
         self._distance_buffers = [collections.deque(maxlen=5) for _ in range(8)]
         self._pe_debounce_counters = [0] * 4
         self._pe_last_states = [0] * 4
@@ -244,8 +246,15 @@ class RuntimeCore:
         return self._last_suspension_result
 
     def _publish_chassis_velocity(self, vx, vy=0.0, wz=0.0):
-        self.context.chassis_velocity_target = [float(vx), float(vy), float(wz)]
-        return self.body.chassis.set_velocity(vx, vy, wz, self.owner)
+        compensated = _apply_chassis_deadzone(
+            vx,
+            vy,
+            wz,
+            xy_deadzone=self._chassis_deadzone['xy'],
+            wz_deadzone=self._chassis_deadzone['wz'],
+        )
+        self.context.chassis_velocity_target = list(compensated)
+        return self.body.chassis.set_velocity(*compensated, owner=self.owner)
 
     def _publish_suspension_heights(self, heights):
         self.context.suspension_target = [float(value) for value in heights[:4]]
@@ -424,6 +433,26 @@ def _clamp(value, lower, upper):
     if upper <= 0.0:
         return 0.0
     return max(lower, min(upper, value))
+
+
+def _apply_chassis_deadzone(vx, vy, wz, xy_deadzone=0.0, wz_deadzone=0.0):
+    return (
+        _add_signed_deadzone(vx, xy_deadzone),
+        _add_signed_deadzone(vy, xy_deadzone),
+        _add_signed_deadzone(wz, wz_deadzone),
+    )
+
+
+def _add_signed_deadzone(value, deadzone):
+    value = float(value)
+    deadzone = abs(float(deadzone))
+    if abs(value) <= 1e-9:
+        return 0.0
+    if value > 0.0:
+        return value + deadzone
+    if value < 0.0:
+        return value - deadzone
+    return value
 
 
 def _stepmode_direction_to_internal(direction):
