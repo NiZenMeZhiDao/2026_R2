@@ -89,10 +89,13 @@ def _current_pose_xytheta(core):
     pose = list(getattr(core.context, 'robot_pose_map_xytheta', []))
     if len(pose) >= 3:
         return float(pose[0]), float(pose[1]), float(pose[2])
+    odom_pose = list(getattr(core.context, 'robot_pose_odom_xytheta', []))
+    if len(odom_pose) >= 3:
+        return float(odom_pose[0]), float(odom_pose[1]), float(odom_pose[2])
     return (
-        float(getattr(core.context, 'robot_x', 0.0)),
-        float(getattr(core.context, 'robot_y', 0.0)),
-        float(getattr(core.context, 'robot_theta', 0.0)),
+        float(getattr(core.context, 'odom_x', 0.0)),
+        float(getattr(core.context, 'odom_y', 0.0)),
+        float(getattr(core.context, 'odom_theta', 0.0)),
     )
 
 
@@ -139,7 +142,9 @@ def _move_to_or_stop(core, x, y, theta):
 
 def _localization_ready(core):
     context = getattr(core, 'context', None)
-    return bool(getattr(context, 'localization_ready', False))
+    if context is None:
+        return False
+    return bool(context.localization_ready or context.odom_ready)
 
 
 def _log_info(core, message):
