@@ -59,11 +59,13 @@ def run_task(core):
 def climb_step(core, config):
     task = StepClimbTask(core, config)
     task.reset()
-    reference_pose = _current_pose_xytheta(core)
+    reference_pose = _reference_pose_if_ready(core)
     deadline = time.monotonic() + float(config.timeout)
     try:
         while not task.is_done():
             _spin_core_once(core)
+            if reference_pose is None:
+                reference_pose = _reference_pose_if_ready(core)
             result = task.tick(
                 _pose_error_from_reference(core, reference_pose, config.move_direction),
                 now=time.monotonic(),
@@ -95,15 +97,28 @@ def _current_pose_xytheta(core):
 
 
 def _pose_error_from_reference(core, reference_pose, move_direction):
+    if reference_pose is None:
+        return 0.0, 0.0, 0.0
+
     current = _current_pose_xytheta(core)
     dx = reference_pose[0] - current[0]
     dy = reference_pose[1] - current[1]
     dtheta = wrap_angle(reference_pose[2] - current[2])
+    cos_heading = _cos(reference_pose[2])
+    sin_heading = _sin(reference_pose[2])
+    forward_error = cos_heading * dx + sin_heading * dy
+    left_error = -sin_heading * dx + cos_heading * dy
 
     if int(move_direction) == 0:
-        return 0.0, dy, dtheta
+        return 0.0, left_error, dtheta
 
-    return 0.0, dx, dtheta
+    return 0.0, forward_error, dtheta
+
+
+def _reference_pose_if_ready(core):
+    if not _localization_ready(core):
+        return None
+    return _current_pose_xytheta(core)
 
 
 def _log_phase(core, result):
@@ -148,6 +163,18 @@ def _spin_core_once(core):
     if hasattr(rclpy, 'ok') and not rclpy.ok():
         return
     rclpy.spin_once(node, timeout_sec=0.0)
+
+
+def _cos(value):
+    import math
+
+    return math.cos(float(value))
+
+
+def _sin(value):
+    import math
+
+    return math.sin(float(value))
 
 
 if __name__ == '__main__':

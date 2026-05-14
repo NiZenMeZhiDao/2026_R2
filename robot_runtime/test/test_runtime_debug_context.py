@@ -9,6 +9,8 @@ def test_debug_context_includes_control_and_sensor_details():
     context.wheel_heights = [11.0, 21.0, 31.0, 41.0]
     context.lower_machine_raw = [1, 0, 1, 0, 11.0, 21.0, 31.0, 41.0, 9.0]
     context.filtered_pe_switches = [1, 0, 1, 0]
+    context.distances = [100.0, 101.0, 102.0]
+    context.filtered_distances = [99.0, 100.0, 101.0]
     context.stepmode_enabled = True
     context.stepmode_direction = 1
     context.stepmode_direction_name = '左'
@@ -23,5 +25,7 @@ def test_debug_context_includes_control_and_sensor_details():
     assert '位置误差dx=0.100' in text
     assert '光电遮挡情况r0x0201前四个数据' in text
     assert 'r0x0201第5-8个数据' in text
-    assert '下位机原始四轮高度' not in text
-    assert 'r0x0201完整原始数据' not in text
+    assert 'Monitor汇总' in text
+    assert '/t0x0102_action=[10.000, 20.000, 30.000, 40.000]' in text
+    assert '/r0x0201=[1.000, 0.000, 1.000, 0.000, 11.000, 21.000, 31.000, 41.000, 9.000]' in text
+    assert '/sensor_distances=[100.000, 101.000, 102.000]' in text

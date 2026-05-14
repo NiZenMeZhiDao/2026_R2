@@ -1,4 +1,5 @@
 def format_debug_context(context):
+    lower_machine_raw = list(context.lower_machine_raw)
     pe_raw = _padded(context.lower_machine_raw[:4], 4, 0.0)
     pe_filtered = _padded(context.filtered_pe_switches, 4, 0)
     wheel_heights = _padded(context.wheel_heights, 4, float('nan'))
@@ -81,6 +82,11 @@ def format_debug_context(context):
             _fmt(context.step_height),
             context.suspension_state,
             context.suspension_status,
+        ),
+        'Monitor汇总：/runtime/debug=本消息；/t0x0102_action=%s；/r0x0201=%s；/sensor_distances=%s' % (
+            _fmt_list(context.suspension_target),
+            _fmt_list(lower_machine_raw),
+            _fmt_list(context.distances),
         ),
     ])
 

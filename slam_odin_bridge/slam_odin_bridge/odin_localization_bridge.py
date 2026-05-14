@@ -32,6 +32,11 @@ class OdinLocalizationBridge(Node):
         self.declare_parameter('require_map_transform', True)
         self.declare_parameter('reverse_mount_xy', False)
         self.declare_parameter('reverse_mount_yaw', False)
+        self.declare_parameter('mount_base_to_odin_x', 0.0)
+        self.declare_parameter('mount_base_to_odin_y', 0.0)
+        self.declare_parameter('mount_base_to_odin_z', 0.0)
+        self.declare_parameter('mount_base_to_odin_yaw', 0.0)
+        self.declare_parameter('runtime_frame_yaw', 0.0)
         self.declare_parameter('tf_lookup_timeout_sec', 0.05)
         self.declare_parameter('status_period_sec', 0.5)
 
@@ -49,6 +54,13 @@ class OdinLocalizationBridge(Node):
         self.require_map_transform = bool(self.get_parameter('require_map_transform').value)
         self.reverse_mount_xy = bool(self.get_parameter('reverse_mount_xy').value)
         self.reverse_mount_yaw = bool(self.get_parameter('reverse_mount_yaw').value)
+        self.mount_base_to_odin_x = float(self.get_parameter('mount_base_to_odin_x').value)
+        self.mount_base_to_odin_y = float(self.get_parameter('mount_base_to_odin_y').value)
+        self.mount_base_to_odin_z = float(self.get_parameter('mount_base_to_odin_z').value)
+        self.mount_base_to_odin_yaw = float(
+            self.get_parameter('mount_base_to_odin_yaw').value
+        )
+        self.runtime_frame_yaw = float(self.get_parameter('runtime_frame_yaw').value)
         self.tf_lookup_timeout = Duration(
             seconds=float(self.get_parameter('tf_lookup_timeout_sec').value)
         )
@@ -88,6 +100,11 @@ class OdinLocalizationBridge(Node):
                     odom_pose,
                     reverse_xy=self.reverse_mount_xy,
                     reverse_yaw=self.reverse_mount_yaw,
+                    base_to_sensor_x=self.mount_base_to_odin_x,
+                    base_to_sensor_y=self.mount_base_to_odin_y,
+                    base_to_sensor_z=self.mount_base_to_odin_z,
+                    base_to_sensor_yaw=self.mount_base_to_odin_yaw,
+                    output_frame_yaw=self.runtime_frame_yaw,
                 )
             )
 
@@ -109,6 +126,11 @@ class OdinLocalizationBridge(Node):
                     map_pose,
                     reverse_xy=self.reverse_mount_xy,
                     reverse_yaw=self.reverse_mount_yaw,
+                    base_to_sensor_x=self.mount_base_to_odin_x,
+                    base_to_sensor_y=self.mount_base_to_odin_y,
+                    base_to_sensor_z=self.mount_base_to_odin_z,
+                    base_to_sensor_yaw=self.mount_base_to_odin_yaw,
+                    output_frame_yaw=self.runtime_frame_yaw,
                 )
             )
             self._set_status('localized')
@@ -125,6 +147,11 @@ class OdinLocalizationBridge(Node):
                         odom_pose,
                         reverse_xy=self.reverse_mount_xy,
                         reverse_yaw=self.reverse_mount_yaw,
+                        base_to_sensor_x=self.mount_base_to_odin_x,
+                        base_to_sensor_y=self.mount_base_to_odin_y,
+                        base_to_sensor_z=self.mount_base_to_odin_z,
+                        base_to_sensor_yaw=self.mount_base_to_odin_yaw,
+                        output_frame_yaw=self.runtime_frame_yaw,
                     )
                 )
                 self._set_status('localized_unaligned')

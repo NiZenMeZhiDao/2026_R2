@@ -12,8 +12,8 @@ odin_localization_bridge:
     publish_odom_pose: true
     republish_imu: true
     require_map_transform: false
-    reverse_mount_xy: true
-    reverse_mount_yaw: true
+    reverse_mount_xy: false
+    reverse_mount_yaw: false
     tf_lookup_timeout_sec: 0.05
     status_period_sec: 0.5
 

@@ -2,7 +2,8 @@ import os
 
 from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
-from launch.actions import DeclareLaunchArgument
+from launch.actions import DeclareLaunchArgument, IncludeLaunchDescription
+from launch.launch_description_sources import PythonLaunchDescriptionSource
 from launch.substitutions import LaunchConfiguration
 from launch_ros.actions import Node
 
@@ -12,12 +13,19 @@ def generate_launch_description():
     odin_dir = get_package_share_directory('odin_ros_driver')
 
     default_bridge_config = os.path.join(bridge_dir, 'config', 'param.yaml')
+    default_mount_config = os.path.join(bridge_dir, 'config', 'odin_mount.yaml')
     default_odin_config = os.path.join(odin_dir, 'config', 'control_command.yaml')
+    odin_launch = os.path.join(odin_dir, 'launch', 'odin1_ros2.launch.py')
 
     bridge_config_arg = DeclareLaunchArgument(
         'bridge_config_file',
         default_value=default_bridge_config,
         description='Path to the Odin bridge parameter file.',
+    )
+    mount_config_arg = DeclareLaunchArgument(
+        'mount_config_file',
+        default_value=default_mount_config,
+        description='Path to the Odin mounting extrinsic parameter file.',
     )
     odin_config_arg = DeclareLaunchArgument(
         'odin_config_file',
@@ -30,14 +38,11 @@ def generate_launch_description():
         description='Path to the static PCD map published on /odin1/map.',
     )
 
-    odin_driver = Node(
-        package='odin_ros_driver',
-        executable='host_sdk_sample',
-        name='odin_host_sdk_sample',
-        output='screen',
-        parameters=[{
+    odin_driver = IncludeLaunchDescription(
+        PythonLaunchDescriptionSource(odin_launch),
+        launch_arguments={
             'config_file': LaunchConfiguration('odin_config_file'),
-        }],
+        }.items(),
     )
 
     bridge_node = Node(
@@ -45,7 +50,10 @@ def generate_launch_description():
         executable='odin_localization_bridge',
         name='odin_localization_bridge',
         output='screen',
-        parameters=[LaunchConfiguration('bridge_config_file')],
+        parameters=[
+            LaunchConfiguration('bridge_config_file'),
+            LaunchConfiguration('mount_config_file'),
+        ],
     )
 
     map_node = Node(
@@ -61,6 +69,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         bridge_config_arg,
+        mount_config_arg,
         odin_config_arg,
         pcd_path_arg,
         odin_driver,

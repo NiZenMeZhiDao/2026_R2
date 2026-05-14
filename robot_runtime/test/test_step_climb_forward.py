@@ -1,7 +1,11 @@
 from types import SimpleNamespace
 
 from robot_runtime.libraries.suspension_math import SuspensionPhase
-from robot_runtime.step_climb_forward import climb_step, run_task
+from robot_runtime.step_climb_forward import (
+    _pose_error_from_reference,
+    climb_step,
+    run_task,
+)
 from robot_runtime.tasks import StepClimbConfig
 
 
@@ -102,6 +106,25 @@ def test_climb_step_holds_side_reference_x_and_theta():
     move_calls = _find_calls(core, 'move')
     assert move_calls[-1][2] < 0.0
     assert move_calls[-1][3] > 0.0
+
+
+def test_pose_error_from_reference_uses_body_frame_for_forward_motion():
+    core = FakeCore()
+    core.context.robot_pose_map_xytheta = [1.1, 2.0, 1.57079632679]
+
+    error = _pose_error_from_reference(core, (1.0, 2.0, 1.57079632679), 0)
+
+    assert abs(error[1] - 0.1) < 1e-6
+
+
+def test_pose_error_from_reference_skips_correction_until_localization_ready():
+    core = FakeCore()
+    core.context.localization_ready = False
+    core.context.robot_pose_map_xytheta = [3.0, 4.0, 1.0]
+
+    error = _pose_error_from_reference(core, None, 0)
+
+    assert error == (0.0, 0.0, 0.0)
 
 
 def _find_calls(core, name):

@@ -15,11 +15,17 @@ def generate_launch_description():
     runtime_launch = os.path.join(runtime_dir, 'launch', 'runtime_bottom_layer.launch.py')
     odin_launch = os.path.join(bridge_dir, 'launch', 'odin_external_bringup.launch.py')
     default_odin_config = os.path.join(odin_dir, 'config', 'control_command.yaml')
+    default_mount_config = os.path.join(bridge_dir, 'config', 'odin_mount.yaml')
 
     bridge_config_arg = DeclareLaunchArgument(
         'bridge_config_file',
         default_value=os.path.join(bridge_dir, 'config', 'param.yaml'),
         description='Path to the Odin bridge parameter file.',
+    )
+    mount_config_arg = DeclareLaunchArgument(
+        'mount_config_file',
+        default_value=default_mount_config,
+        description='Path to the Odin mounting extrinsic parameter file.',
     )
     odin_config_arg = DeclareLaunchArgument(
         'odin_config_file',
@@ -28,7 +34,7 @@ def generate_launch_description():
     )
     pcd_path_arg = DeclareLaunchArgument(
         'pcd_path',
-        default_value=os.path.expanduser('~/2026_R2/slam_odin/map.pcd'),
+        default_value=os.path.expanduser('~/2026_R2/map.pcd'),
         description='Path to the static PCD map published on /odin1/map.',
     )
     debug_period_arg = DeclareLaunchArgument(
@@ -47,6 +53,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(odin_launch),
         launch_arguments={
             'bridge_config_file': LaunchConfiguration('bridge_config_file'),
+            'mount_config_file': LaunchConfiguration('mount_config_file'),
             'odin_config_file': LaunchConfiguration('odin_config_file'),
             'pcd_path': LaunchConfiguration('pcd_path'),
         }.items(),
@@ -54,6 +61,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         bridge_config_arg,
+        mount_config_arg,
         odin_config_arg,
         pcd_path_arg,
         debug_period_arg,

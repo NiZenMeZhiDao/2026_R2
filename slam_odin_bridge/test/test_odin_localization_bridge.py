@@ -1,7 +1,7 @@
 from types import SimpleNamespace
 import math
 
-from slam_odin_bridge.pose_math import correct_mount_pose
+from slam_odin_bridge.pose_math import correct_mount_pose, sensor_pose_to_base_pose
 
 
 def test_correct_mount_pose_reverses_xy_and_adds_pi_to_yaw():
@@ -23,6 +23,36 @@ def test_correct_mount_pose_can_leave_pose_unchanged():
     assert corrected.pose.position.x == 1.5
     assert corrected.pose.position.y == -2.0
     assert abs(_yaw(corrected) - 0.25) < 1e-9
+
+
+def test_sensor_pose_to_base_pose_removes_rotating_sensor_offset():
+    sensor_pose = _pose('odom', 1.0, 0.5, math.pi / 2.0)
+
+    base_pose = sensor_pose_to_base_pose(
+        sensor_pose,
+        base_to_sensor_x=0.2,
+        base_to_sensor_y=0.0,
+        base_to_sensor_yaw=0.0,
+    )
+
+    assert abs(base_pose.pose.position.x - 1.0) < 1e-9
+    assert abs(base_pose.pose.position.y - 0.3) < 1e-9
+    assert abs(_yaw(base_pose) - math.pi / 2.0) < 1e-9
+
+
+def test_sensor_pose_to_base_pose_handles_backward_mount():
+    sensor_pose = _pose('odom', 1.0, 0.0, math.pi)
+
+    base_pose = sensor_pose_to_base_pose(
+        sensor_pose,
+        base_to_sensor_x=0.2,
+        base_to_sensor_y=0.0,
+        base_to_sensor_yaw=math.pi,
+    )
+
+    assert abs(base_pose.pose.position.x - 0.8) < 1e-9
+    assert abs(base_pose.pose.position.y) < 1e-9
+    assert abs(_yaw(base_pose)) < 1e-9
 
 
 def _pose(frame_id, x, y, yaw):

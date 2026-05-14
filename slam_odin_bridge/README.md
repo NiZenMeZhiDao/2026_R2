@@ -27,9 +27,11 @@ runtime pose when no `map` transform is available. In that case
 `/localization/status` reports `localized_unaligned`, and move targets are in
 the current odometry frame rather than a relocalized map frame.
 
-The current robot mounts the Odin device facing backward, so the default
-`config/param.yaml` publishes runtime poses with `x/y` reversed and yaw rotated
-by 180 degrees. The raw `/odin1/odometry` topic is still left untouched.
+The current robot mounts the Odin device facing backward. The mounting
+extrinsics live in `config/odin_mount.yaml`; tune `mount_base_to_odin_x/y/z`
+and `mount_base_to_odin_yaw` there so `/robot_pose` reports the robot center
+rather than the Odin sensor frame. The raw `/odin1/odometry` topic is still
+left untouched.
 
 ## Run
 
