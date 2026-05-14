@@ -21,7 +21,7 @@ class RuntimeCore:
         self._distance_buffers = [collections.deque(maxlen=5) for _ in range(8)]
         self._pe_debounce_counters = [0] * 4
         self._pe_last_states = [0] * 4
-        self._skill_period = 0.02
+        self._skill_period = 0.005
         self._motion_skill = None
         self._suspension_skill = None
         self._last_motion_publish_time = None

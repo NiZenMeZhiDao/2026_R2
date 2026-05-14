@@ -13,7 +13,7 @@ class StepClimbConfig:
     base_vx: float = 0.12
     base_vy: float = 0.0
     base_wz: float = 0.0
-    control_period: float = 0.01
+    control_period: float = 0.005
     timeout: float = 10.0
     correct_y: bool = True
     correct_wz: bool = True

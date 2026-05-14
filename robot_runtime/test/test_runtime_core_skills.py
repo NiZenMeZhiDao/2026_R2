@@ -81,6 +81,16 @@ def test_move_skill_overwrites_previous_motion(monkeypatch):
     assert core.body.chassis.commands == [[0.32, 0.42, 0.55]]
 
 
+def test_runtime_core_uses_200hz_skill_timer_for_step_sequence(monkeypatch):
+    monkeypatch.setattr('robot_runtime.runtime_core.RobotBody', FakeRobotBody)
+    node = FakeNode()
+
+    core = RuntimeCore(node)
+
+    assert abs(core._skill_period - 0.005) < 1e-9
+    assert abs(node.period - 0.005) < 1e-9
+
+
 def test_stop_clears_active_skills_and_publishes_zero(monkeypatch):
     monkeypatch.setattr('robot_runtime.runtime_core.RobotBody', FakeRobotBody)
     core = RuntimeCore(FakeNode())

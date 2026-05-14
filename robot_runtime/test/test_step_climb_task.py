@@ -56,6 +56,12 @@ def test_forward_step_climb_keeps_base_speed_and_corrects_y_wz():
     assert result['suspension']['phase'] == SuspensionPhase.UP_1_PREPARE
 
 
+def test_step_climb_default_control_period_is_200hz():
+    config = StepClimbConfig.forward()
+
+    assert abs(config.control_period - 0.005) < 1e-9
+
+
 def test_step_climb_can_extend_to_left_direction_and_custom_speed():
     core = FakeCore()
     config = StepClimbConfig.left(
