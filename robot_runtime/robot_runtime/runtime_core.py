@@ -16,6 +16,17 @@ class RuntimeCore:
         self.context = RobotContext()
         self.body = RobotBody(node, self.context)
         self.owner = 'runtime_core'
+        self.default_move_to_frame = _node_parameter(node, 'default_move_to_frame', 'map')
+        self.allow_move_to_odom_fallback = bool(
+            _node_parameter(node, 'allow_move_to_odom_fallback', True)
+        )
+        self.pose_timeout_sec = float(_node_parameter(node, 'pose_timeout_sec', 0.5))
+        self.move_to_xy_tolerance = float(
+            _node_parameter(node, 'move_to_xy_tolerance', 0.05)
+        )
+        self.move_to_theta_tolerance = float(
+            _node_parameter(node, 'move_to_theta_tolerance', 0.05)
+        )
         self.suspension_math = SuspensionMath()
         self._chassis_deadzone = chassis_deadzone()
         self._distance_buffers = [collections.deque(maxlen=5) for _ in range(8)]
@@ -76,6 +87,7 @@ class RuntimeCore:
         self.context.suspension_status = str(value)
 
     def update_robot_pose(self, pose):
+        now = time_module.monotonic()
         self.context.robot_pose = pose
         self.context.robot_pose_map = pose
         x, y, theta = _pose_to_xytheta(pose)
@@ -84,9 +96,12 @@ class RuntimeCore:
         self.context.robot_y = y
         self.context.robot_theta = theta
         self.context.robot_pose_frame = str(pose.header.frame_id)
+        self.context.robot_pose_receive_time = now
+        self.context.map_ready = True
         self.context.localization_ready = True
 
     def update_robot_pose_odom(self, pose):
+        now = time_module.monotonic()
         self.context.robot_pose_odom = pose
         x, y, theta = _pose_to_xytheta(pose)
         self.context.robot_pose_odom_xytheta = [x, y, theta]
@@ -94,6 +109,7 @@ class RuntimeCore:
         self.context.odom_y = y
         self.context.odom_theta = theta
         self.context.odom_pose_frame = str(pose.header.frame_id)
+        self.context.odom_pose_receive_time = now
         self.context.odom_ready = True
 
     def update_imu(self, imu):
@@ -104,10 +120,8 @@ class RuntimeCore:
 
     def update_localization_status(self, status):
         self.context.localization_status = str(status)
-        self.context.localization_ready = self.context.localization_status in (
-            'localized',
-            'localized_unaligned',
-        )
+        self.context.map_ready = self.context.localization_status == 'localized'
+        self.context.localization_ready = self.context.map_ready
 
     def set_emergency_stop(self, enabled):
         self.context.emergency_stop = bool(enabled)
@@ -134,6 +148,7 @@ class RuntimeCore:
         }
         self.context.active_motion_skill = 'move'
         self.context.move_to_target = []
+        self.context.move_to_frame = self.default_move_to_frame
         self.context.move_to_error = []
         self.context.move_to_body_error = []
         self._last_motion_publish_time = None
@@ -149,21 +164,27 @@ class RuntimeCore:
         wz=0.5,
         timeout=10.0,
         wait=True,
+        frame=None,
     ):
-        """Move toward a map pose; by default wait until arrival or timeout."""
+        """Move toward a pose in the selected frame; by default wait until arrival."""
+        target_frame = _normalize_pose_frame(
+            self.default_move_to_frame if frame is None else frame
+        )
         self._motion_skill = {
             'kind': 'move_to',
             'x': float(x),
             'y': float(y),
             'theta': float(theta),
+            'frame': target_frame,
             'vx_limit': abs(float(vx)),
             'vy_limit': abs(float(vy)),
             'wz_limit': abs(float(wz)),
-            'xy_tolerance': 0.05,
-            'theta_tolerance': 0.05,
+            'xy_tolerance': self.move_to_xy_tolerance,
+            'theta_tolerance': self.move_to_theta_tolerance,
         }
         self.context.active_motion_skill = 'move_to'
         self.context.move_to_target = [float(x), float(y), float(theta)]
+        self.context.move_to_frame = target_frame
         self.context.move_to_error = []
         self.context.move_to_body_error = []
         self._last_motion_publish_time = None
@@ -357,19 +378,12 @@ class RuntimeCore:
         }
 
     def _compute_move_to_velocity(self, skill):
-        pose = self.context.robot_pose_map or self.context.robot_pose
-        ready = self.context.localization_ready or self.context.odom_ready
-        if not ready:
-            self._publish_chassis_velocity(0.0, 0.0, 0.0)
-            self.context.last_error = 'move_to requires localization or odometry'
-            return None
-        if pose is None:
-            pose = self.context.robot_pose_odom
+        pose, pose_frame = self._select_move_to_pose(skill['frame'])
         if pose is None:
             self._publish_chassis_velocity(0.0, 0.0, 0.0)
-            self.context.last_error = 'move_to requires robot_pose_map, robot_pose, or robot_pose_odom'
             return None
 
+        self.context.move_to_frame = pose_frame
         current_x = float(pose.pose.position.x)
         current_y = float(pose.pose.position.y)
         current_yaw = _yaw_from_orientation(pose.pose.orientation)
@@ -398,6 +412,31 @@ class RuntimeCore:
         vy = _clamp(0.8 * left_error, -skill['vy_limit'], skill['vy_limit'])
         wz = _clamp(1.2 * yaw_error, -skill['wz_limit'], skill['wz_limit'])
         return vx, vy, wz, False
+
+    def _select_move_to_pose(self, requested_frame):
+        frame = _normalize_pose_frame(requested_frame)
+        now = time_module.monotonic()
+        if frame == 'map':
+            if self.context.map_ready and self.context.robot_pose_map is not None:
+                age = now - self.context.robot_pose_receive_time
+                if age <= self.pose_timeout_sec:
+                    return self.context.robot_pose_map, 'map'
+                self.context.last_error = 'move_to map pose timeout: %.3fs' % age
+                return None, 'map'
+            if self.allow_move_to_odom_fallback:
+                return self._select_move_to_pose('odom')
+            self.context.last_error = 'move_to requires fresh map pose'
+            return None, 'map'
+
+        if self.context.odom_ready and self.context.robot_pose_odom is not None:
+            age = now - self.context.odom_pose_receive_time
+            if age <= self.pose_timeout_sec:
+                return self.context.robot_pose_odom, 'odom'
+            self.context.last_error = 'move_to odom pose timeout: %.3fs' % age
+            return None, 'odom'
+
+        self.context.last_error = 'move_to requires odom pose'
+        return None, 'odom'
 
 
 def _debounce_pe(current_values, last_states, counters):
@@ -436,6 +475,25 @@ def _clamp(value, lower, upper):
     if upper <= 0.0:
         return 0.0
     return max(lower, min(upper, value))
+
+
+def _normalize_pose_frame(frame):
+    value = str(frame).strip().lower()
+    if value in ('map', 'global'):
+        return 'map'
+    if value in ('odom', 'odometry'):
+        return 'odom'
+    raise ValueError("move_to frame must be 'map' or 'odom'")
+
+
+def _node_parameter(node, name, default):
+    if not hasattr(node, 'declare_parameter') or not hasattr(node, 'get_parameter'):
+        return default
+    try:
+        node.declare_parameter(name, default)
+        return node.get_parameter(name).value
+    except Exception:
+        return default
 
 
 def _apply_chassis_deadzone(vx, vy, wz, xy_deadzone=0.0, wz_deadzone=0.0):

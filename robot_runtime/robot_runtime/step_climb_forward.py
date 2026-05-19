@@ -27,26 +27,30 @@ def main(args=None):
 
 def run_task(core):
     """Top-level task example: edit this function into the real field routine."""
-    # Current field test uses forward stair-climb mode at every waypoint.
-    # core.move_to(x=1.00, y=0.00, theta=0.00, timeout=MOVE_TIMEOUT)
-    climb_step(core, StepClimbConfig.forward(speed=0.5))
-
-    # Example of a simple mode switch between navigation segments.
-    core.set_stepmode(False)
-    core.set_height(30.0)
+    _wait_until_ready(core, timeout=30.0)
     if not _localization_ready(core):
-        _log_info(core, 'Skip move_to waypoints: localization is not ready')
+        _log_info(core, 'Skip routine: no localization within timeout')
         core.stop()
         return
 
-    # Move to the second test waypoint, then climb forward again.
+    core.set_stepmode(False)
+    core.set_height(30.0)
+
+    # Move to the first waypoint, then climb forward.
+    if not _move_to_or_stop(core, x=1.00, y=0.00, theta=0.00):
+        return
+    climb_step(core, StepClimbConfig.forward(speed=0.5))
+    core.set_stepmode(False)
+    core.set_height(30.0)
+
+    # Move to the second waypoint, then climb forward again.
     if not _move_to_or_stop(core, x=1.20, y=0.00, theta=1.5708):
         return
     climb_step(core, StepClimbConfig.forward(speed=0.5))
     core.set_stepmode(False)
     core.set_height(30.0)
 
-    # Move to the third test waypoint, then climb forward again.
+    # Move to the third waypoint, then climb forward again.
     if not _move_to_or_stop(core, x=1.20, y=1.20, theta=0):
         return
     climb_step(core, StepClimbConfig.forward(speed=0.5))
@@ -78,16 +82,11 @@ def climb_step(core, config):
         task.stop()
 
 
-def _pose_error(core):
-    values = core.context.relative_pose_error
-    if len(values) >= 3:
-        return values[:3]
-    return 0.0, 0.0, 0.0
-
-
 def _current_pose_xytheta(core):
+    map_ready = bool(getattr(core.context, 'map_ready', False))
+    localization_ready = bool(getattr(core.context, 'localization_ready', False))
     pose = list(getattr(core.context, 'robot_pose_map_xytheta', []))
-    if len(pose) >= 3:
+    if (map_ready or localization_ready) and len(pose) >= 3:
         return float(pose[0]), float(pose[1]), float(pose[2])
     odom_pose = list(getattr(core.context, 'robot_pose_odom_xytheta', []))
     if len(odom_pose) >= 3:
@@ -130,9 +129,9 @@ def _log_phase(core, result):
         core._step_climb_phase = phase
 
 
-def _move_to_or_stop(core, x, y, theta):
+def _move_to_or_stop(core, *, x, y, theta, frame=None, timeout=MOVE_TIMEOUT):
     try:
-        core.move_to(x=x, y=y, theta=theta, timeout=MOVE_TIMEOUT)
+        core.move_to(x=x, y=y, theta=theta, timeout=timeout, frame=frame)
         return True
     except TimeoutError as exc:
         _log_info(core, 'Stop task: %s' % exc)
@@ -140,11 +139,25 @@ def _move_to_or_stop(core, x, y, theta):
         return False
 
 
+def _wait_until_ready(core, timeout=30.0):
+    import rclpy
+
+    deadline = time.monotonic() + float(timeout)
+    while not _localization_ready(core):
+        if time.monotonic() >= deadline:
+            _log_info(core, 'Wait for localization timed out')
+            return
+        if hasattr(rclpy, 'ok') and not rclpy.ok():
+            return
+        _spin_core_once(core)
+        time.sleep(0.1)
+
+
 def _localization_ready(core):
     context = getattr(core, 'context', None)
     if context is None:
         return False
-    return bool(context.localization_ready or context.odom_ready)
+    return bool(context.map_ready or context.localization_ready or context.odom_ready)
 
 
 def _log_info(core, message):

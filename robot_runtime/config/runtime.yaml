@@ -1,0 +1,17 @@
+robot_runtime_node:
+  ros__parameters:
+    debug_period_sec: 0.5
+
+    # Default target frame for core.move_to(x, y, theta).
+    # Use "map" for relocalized field coordinates, or "odom" for local odometry.
+    default_move_to_frame: map
+
+    # When default_move_to_frame is "map", allow move_to to use odom if map is
+    # not currently localized.
+    allow_move_to_odom_fallback: true
+
+    # Stop move_to if the selected pose has not refreshed recently.
+    pose_timeout_sec: 0.5
+
+    move_to_xy_tolerance: 0.05
+    move_to_theta_tolerance: 0.05

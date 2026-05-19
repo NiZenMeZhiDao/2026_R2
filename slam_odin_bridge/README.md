@@ -22,16 +22,21 @@ slam_odin_bridge
   -> /odin1/map        PointCloud2 static map
 ```
 
-By default the bridge can fall back to publishing odometry as an unaligned
-runtime pose when no `map` transform is available. In that case
-`/localization/status` reports `localized_unaligned`, and move targets are in
-the current odometry frame rather than a relocalized map frame.
+The bridge treats Odin odometry as the robot-center pose directly. It does not
+apply any mounting offset, axis reversal, or yaw correction before publishing
+`/robot_pose` and `/robot_pose_odom`.
 
-The current robot mounts the Odin device facing backward. The mounting
-extrinsics live in `config/odin_mount.yaml`; tune `mount_base_to_odin_x/y/z`
-and `mount_base_to_odin_yaw` there so `/robot_pose` reports the robot center
-rather than the Odin sensor frame. The raw `/odin1/odometry` topic is still
-left untouched.
+When no `map` transform is available, `/localization/status` reports
+`odom_only`. In that state the bridge keeps publishing `/robot_pose_odom`, but
+does not pretend odometry is a relocalized `/robot_pose` unless map data really
+exists.
+
+Runtime behavior is configured in `config/param.yaml`:
+
+- `allow_odom_fallback`: keep odom-only operation available when map TF is
+  missing.
+- `zero_pose_on_start`: when `false`, publish Odin/map coordinates directly;
+  when `true`, publish poses relative to the first received pose.
 
 ## Run
 

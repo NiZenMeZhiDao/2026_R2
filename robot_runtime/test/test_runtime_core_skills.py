@@ -12,6 +12,17 @@ class FakeNode:
         return SimpleNamespace(period=period, callback=callback)
 
 
+class FakeParamNode(FakeNode):
+    def __init__(self, parameters):
+        self.parameters = dict(parameters)
+
+    def declare_parameter(self, name, default):
+        self.parameters.setdefault(name, default)
+
+    def get_parameter(self, name):
+        return SimpleNamespace(value=self.parameters[name])
+
+
 class FakeChassis:
     def __init__(self):
         self.commands = []
@@ -140,6 +151,18 @@ def test_move_to_can_still_be_started_as_async_skill(monkeypatch):
     assert skill['kind'] == 'move_to'
     assert core.active_motion_skill['kind'] == 'move_to'
     assert core.context.move_to_target == [1.0, 2.0, 0.3]
+    assert core.context.move_to_frame == 'map'
+
+
+def test_move_to_default_frame_can_come_from_node_parameters(monkeypatch):
+    monkeypatch.setattr('robot_runtime.runtime_core.RobotBody', FakeRobotBody)
+    node = FakeParamNode({'default_move_to_frame': 'odom'})
+    core = RuntimeCore(node)
+
+    skill = core.move_to(1.0, 2.0, 0.3, wait=False)
+
+    assert skill['frame'] == 'odom'
+    assert core.context.move_to_frame == 'odom'
 
 
 def test_move_to_waits_until_pose_reaches_target(monkeypatch):
@@ -180,6 +203,50 @@ def test_move_to_velocity_uses_body_frame_left_positive(monkeypatch):
     assert core.context.move_to_error == [0.0, 1.0, 0.0]
     assert core.context.move_to_body_error == [0.0, 1.0, 0.0]
     assert core.body.chassis.commands[-1] == [0.0, 0.32, 0.0]
+
+
+def test_move_to_can_use_odom_frame_explicitly(monkeypatch):
+    monkeypatch.setattr('robot_runtime.runtime_core.RobotBody', FakeRobotBody)
+    core = RuntimeCore(FakeNode())
+    core.update_robot_pose_odom(_pose('odom', 0.0, 0.0, 0.0))
+    core.move_to(1.0, 0.0, 0.0, wait=False, frame='odom')
+
+    core.tick_skills()
+
+    assert core.context.move_to_frame == 'odom'
+    assert core.context.move_to_error == [1.0, 0.0, 0.0]
+    assert core.body.chassis.commands[-1] == [0.42, 0.0, 0.0]
+
+
+def test_move_to_falls_back_to_odom_when_map_is_not_ready(monkeypatch):
+    monkeypatch.setattr('robot_runtime.runtime_core.RobotBody', FakeRobotBody)
+    core = RuntimeCore(FakeNode())
+    core.update_robot_pose_odom(_pose('odom', 0.0, 0.0, 0.0))
+    core.update_localization_status('odom_only')
+    core.move_to(1.0, 0.0, 0.0, wait=False)
+
+    core.tick_skills()
+
+    assert core.context.move_to_frame == 'odom'
+    assert core.body.chassis.commands[-1] == [0.42, 0.0, 0.0]
+
+
+def test_move_to_stops_when_selected_pose_is_stale(monkeypatch):
+    monkeypatch.setattr('robot_runtime.runtime_core.RobotBody', FakeRobotBody)
+    node = FakeParamNode({
+        'allow_move_to_odom_fallback': False,
+        'pose_timeout_sec': 0.001,
+    })
+    core = RuntimeCore(node)
+    core.update_robot_pose(_pose('map', 0.0, 0.0, 0.0))
+    core.context.robot_pose_receive_time -= 1.0
+    core.move_to(1.0, 0.0, 0.0, wait=False)
+
+    core.tick_skills()
+
+    assert core.context.move_to_frame == 'map'
+    assert core.body.chassis.commands[-1] == [0.0, 0.0, 0.0]
+    assert 'map pose timeout' in core.context.last_error
 
 
 def test_move_to_velocity_rotates_map_error_into_body_frame(monkeypatch):

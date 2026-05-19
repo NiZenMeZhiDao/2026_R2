@@ -1,8 +1,12 @@
 from dataclasses import dataclass, field
-from typing import List, Optional
+from typing import Any, List, Optional
 
-from geometry_msgs.msg import PoseStamped
-from sensor_msgs.msg import Imu
+try:
+    from geometry_msgs.msg import PoseStamped
+    from sensor_msgs.msg import Imu
+except ImportError:
+    PoseStamped = Any
+    Imu = Any
 
 
 @dataclass
@@ -22,8 +26,11 @@ class RobotContext:
     odom_theta: float = 0.0
     robot_pose_frame: str = ''
     odom_pose_frame: str = ''
+    map_ready: bool = False
     localization_ready: bool = False
     odom_ready: bool = False
+    robot_pose_receive_time: float = 0.0
+    odom_pose_receive_time: float = 0.0
     nav_status: str = 'idle'
     localization_status: str = 'idle'
     imu: Optional[Imu] = None
@@ -49,6 +56,7 @@ class RobotContext:
     stepmode_direction: int = 0
     stepmode_direction_name: str = '前进'
     move_to_target: List[float] = field(default_factory=list)
+    move_to_frame: str = 'map'
     move_to_error: List[float] = field(default_factory=list)
     move_to_body_error: List[float] = field(default_factory=list)
 

@@ -15,9 +15,10 @@ def format_debug_context(context):
 
     return '\n'.join([
         '【机器人运行时调试信息】',
-        '状态总览：定位=%s(%s)，导航=%s，急停=%s，最近错误=%s' % (
+        '状态总览：定位=%s(map=%s, odom=%s)，导航=%s，急停=%s，最近错误=%s' % (
             context.localization_status,
-            '可用' if context.localization_ready else '不可用',
+            '可用' if context.map_ready else '不可用',
+            '可用' if context.odom_ready else '不可用',
             context.nav_status,
             '触发' if context.emergency_stop else '正常',
             context.last_error or '无',
@@ -27,8 +28,9 @@ def format_debug_context(context):
             _fmt(chassis_target[1]),
             _fmt(chassis_target[2]),
         ),
-        '当前运动skill：%s；目标位置[x,y,theta]=[%s, %s, %s]；位置误差dx=%s, dy=%s, dtheta=%s' % (
+        '当前运动skill：%s；目标frame=%s；目标位置[x,y,theta]=[%s, %s, %s]；位置误差dx=%s, dy=%s, dtheta=%s' % (
             context.active_motion_skill,
+            context.move_to_frame,
             _fmt(move_target[0]),
             _fmt(move_target[1]),
             _fmt(move_target[2]),

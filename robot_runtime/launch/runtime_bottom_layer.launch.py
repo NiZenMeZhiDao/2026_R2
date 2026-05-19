@@ -1,3 +1,6 @@
+import os
+
+from ament_index_python.packages import get_package_share_directory
 from launch import LaunchDescription
 from launch.actions import DeclareLaunchArgument
 from launch.substitutions import LaunchConfiguration
@@ -5,7 +8,15 @@ from launch_ros.actions import Node
 
 
 def generate_launch_description():
+    runtime_dir = get_package_share_directory('robot_runtime')
+    default_config = os.path.join(runtime_dir, 'config', 'runtime.yaml')
+
     return LaunchDescription([
+        DeclareLaunchArgument(
+            'runtime_config_file',
+            default_value=default_config,
+            description='Path to the robot runtime parameter file.',
+        ),
         DeclareLaunchArgument(
             'debug_period_sec',
             default_value='0.5',
@@ -28,8 +39,9 @@ def generate_launch_description():
             executable='runtime_node',
             name='robot_runtime_node',
             output='screen',
-            parameters=[{
-                'debug_period_sec': LaunchConfiguration('debug_period_sec'),
-            }],
+            parameters=[
+                LaunchConfiguration('runtime_config_file'),
+                {'debug_period_sec': LaunchConfiguration('debug_period_sec')},
+            ],
         ),
     ])

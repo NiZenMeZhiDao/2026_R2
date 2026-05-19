@@ -73,7 +73,7 @@
     {
       "label": "runtime_debug",
       "type": "shell",
-      "command": "source install/setup.zsh && ros2 topic echo /runtime/debug",
+      "command": "source install/setup.zsh && ros2 topic echo /runtime/debug --full-length",
       "presentation": {
         "panel": "new",
         "focus": true,

@@ -10,17 +10,11 @@ from launch_ros.actions import Node
 def generate_launch_description():
     package_dir = get_package_share_directory('slam_odin_bridge')
     default_config = os.path.join(package_dir, 'config', 'param.yaml')
-    default_mount_config = os.path.join(package_dir, 'config', 'odin_mount.yaml')
 
     config_arg = DeclareLaunchArgument(
         'config_file',
         default_value=default_config,
         description='Path to the Odin localization bridge parameter file.',
-    )
-    mount_config_arg = DeclareLaunchArgument(
-        'mount_config_file',
-        default_value=default_mount_config,
-        description='Path to the Odin mounting extrinsic parameter file.',
     )
     pcd_path_arg = DeclareLaunchArgument(
         'pcd_path',
@@ -35,7 +29,6 @@ def generate_launch_description():
         output='screen',
         parameters=[
             LaunchConfiguration('config_file'),
-            LaunchConfiguration('mount_config_file'),
         ],
     )
 
@@ -52,7 +45,6 @@ def generate_launch_description():
 
     return LaunchDescription([
         config_arg,
-        mount_config_arg,
         pcd_path_arg,
         bridge_node,
         map_node,

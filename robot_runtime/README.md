@@ -154,8 +154,10 @@ ROS 节点外壳，只订阅外部驱动 topic，然后调用 `RuntimeCore.updat
 - `robot_pose_odom_xytheta`: `[x, y, theta]`，odom 坐标系下的平面位姿摘要。
 - `robot_x`、`robot_y`、`robot_theta`: map 坐标系下任务层常用定位字段。
 - `odom_x`、`odom_y`、`odom_theta`: odom 坐标系下连续里程计字段。
-- `localization_ready`: map 定位是否可用。
+- `map_ready`: map 定位是否可用。
+- `localization_ready`: 兼容字段，当前等同于 `map_ready`。
 - `odom_ready`: odom 里程计是否已经收到。
+- `robot_pose_receive_time`、`odom_pose_receive_time`: runtime 收到位姿的本机单调时间，用于超时保护。
 - `localization_status`: `waiting_for_odom`、`odom_only`、`localized` 等定位状态。
 
 `robot_runtime/robot_body.py`
@@ -199,9 +201,16 @@ controller 独占保护。调用 controller 时必须带 `owner`，避免多个�
 
 ```python
 core.move(vx, vy, wz, time=0.0)
-core.move_to(x, y, theta, timeout=10.0)
+core.move_to(x, y, theta, timeout=10.0, frame='map')
 core.stop()
 ```
+
+`robot_runtime/config/runtime.yaml` 里可以调常用定位消费策略：
+
+- `default_move_to_frame`: `core.move_to()` 未显式传 `frame` 时使用 `map` 还是 `odom`。
+- `allow_move_to_odom_fallback`: map 不可用时，是否允许默认 map 目标自动改用 odom 位姿。
+- `pose_timeout_sec`: 位姿多久没刷新就让 `move_to` 停车报错。
+- `move_to_xy_tolerance`、`move_to_theta_tolerance`: 到点判定阈值。
 
 悬挂：
 
@@ -236,7 +245,13 @@ core.move(0.20, 0.0, 0.0, time=2.0)
 移动到 map 坐标系目标位姿：
 
 ```python
-core.move_to(x=1.0, y=0.5, theta=0.0)
+core.move_to(x=1.0, y=0.5, theta=0.0, frame='map')
+```
+
+只按当前 odom 局部坐标移动：
+
+```python
+core.move_to(x=1.0, y=0.5, theta=0.0, frame='odom')
 ```
 
 `move_to()` 默认是同步 skill：到达目标点后才返回，默认 10 秒超时。需要后台模式时可以用：

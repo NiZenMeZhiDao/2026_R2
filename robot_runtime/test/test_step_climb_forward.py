@@ -23,6 +23,7 @@ class FakeCore:
             odom_y=0.0,
             odom_theta=0.0,
             suspension_target=[],
+            map_ready=True,
             localization_ready=True,
             odom_ready=True,
         )
@@ -143,6 +144,18 @@ def test_pose_error_from_reference_skips_correction_until_localization_ready():
     error = _pose_error_from_reference(core, None, 0)
 
     assert error == (0.0, 0.0, 0.0)
+
+
+def test_current_pose_uses_odom_when_map_is_not_ready():
+    core = FakeCore()
+    core.context.map_ready = False
+    core.context.localization_ready = False
+    core.context.robot_pose_map_xytheta = [3.0, 4.0, 1.0]
+    core.context.robot_pose_odom_xytheta = [0.2, 0.0, 0.0]
+
+    error = _pose_error_from_reference(core, (0.0, 0.0, 0.0), 0)
+
+    assert error == (-0.2, 0.0, 0.0)
 
 
 def _find_calls(core, name):

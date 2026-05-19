@@ -11,10 +11,8 @@ odin_localization_bridge:
     base_frame: odin1_base_link
     publish_odom_pose: true
     republish_imu: true
-    require_map_transform: true
-    reverse_mount_xy: false
-    reverse_mount_yaw: false
-    zero_pose_on_start: true
+    allow_odom_fallback: true
+    zero_pose_on_start: false
     tf_lookup_timeout_sec: 0.05
     status_period_sec: 0.5
 
