@@ -13,6 +13,7 @@ def generate_launch_description():
     odin_dir = get_package_share_directory('odin_ros_driver')
 
     default_bridge_config = os.path.join(bridge_dir, 'config', 'param.yaml')
+    default_mount_config = os.path.join(bridge_dir, 'config', 'odin_mount.yaml')
     default_odin_config = os.path.join(odin_dir, 'config', 'control_command.yaml')
     odin_launch = os.path.join(odin_dir, 'launch', 'odin1_ros2.launch.py')
 
@@ -20,6 +21,11 @@ def generate_launch_description():
         'bridge_config_file',
         default_value=default_bridge_config,
         description='Path to the Odin bridge parameter file.',
+    )
+    mount_config_arg = DeclareLaunchArgument(
+        'mount_config_file',
+        default_value=default_mount_config,
+        description='Path to the ODIN mount offset parameter file.',
     )
     odin_config_arg = DeclareLaunchArgument(
         'odin_config_file',
@@ -46,6 +52,7 @@ def generate_launch_description():
         output='screen',
         parameters=[
             LaunchConfiguration('bridge_config_file'),
+            LaunchConfiguration('mount_config_file'),
         ],
     )
 
@@ -62,6 +69,7 @@ def generate_launch_description():
 
     return LaunchDescription([
         bridge_config_arg,
+        mount_config_arg,
         odin_config_arg,
         pcd_path_arg,
         odin_driver,

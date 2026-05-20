@@ -33,6 +33,10 @@ class OdinLocalizationBridge(Node):
         self.declare_parameter('zero_pose_on_start', False)
         self.declare_parameter('tf_lookup_timeout_sec', 0.05)
         self.declare_parameter('status_period_sec', 0.5)
+        self.declare_parameter('mount_base_to_odin_x', -0.35)
+        self.declare_parameter('mount_base_to_odin_y', 0.0)
+        self.declare_parameter('mount_base_to_odin_z', 0.0)
+        self.declare_parameter('mount_base_to_odin_yaw', math.pi)
 
         self.odometry_topic = self.get_parameter('odometry_topic').value
         self.imu_topic = self.get_parameter('imu_topic').value
@@ -51,6 +55,15 @@ class OdinLocalizationBridge(Node):
             seconds=float(self.get_parameter('tf_lookup_timeout_sec').value)
         )
         status_period = float(self.get_parameter('status_period_sec').value)
+
+        self.mount_translation = (
+            float(self.get_parameter('mount_base_to_odin_x').value),
+            float(self.get_parameter('mount_base_to_odin_y').value),
+            float(self.get_parameter('mount_base_to_odin_z').value),
+        )
+        mount_yaw = float(self.get_parameter('mount_base_to_odin_yaw').value)
+        half_yaw = mount_yaw * 0.5
+        self.mount_orientation = (0.0, 0.0, math.sin(half_yaw), math.cos(half_yaw))
 
         self.tf_buffer = Buffer()
         self.tf_listener = TransformListener(self.tf_buffer, self)
@@ -75,12 +88,36 @@ class OdinLocalizationBridge(Node):
             f'{self.odometry_topic} -> {self.output_pose_map_topic}'
         )
 
+    def _apply_mount_offset(self, pose):
+        """Convert ODIN sensor pose to vehicle body center pose."""
+        odin_orientation = (
+            pose.pose.orientation.x,
+            pose.pose.orientation.y,
+            pose.pose.orientation.z,
+            pose.pose.orientation.w,
+        )
+        mount_inv = _quat_conjugate(self.mount_orientation)
+        vehicle_orientation = _quat_normalize(
+            _quat_multiply(odin_orientation, mount_inv)
+        )
+        pose.pose.orientation.x = vehicle_orientation[0]
+        pose.pose.orientation.y = vehicle_orientation[1]
+        pose.pose.orientation.z = vehicle_orientation[2]
+        pose.pose.orientation.w = vehicle_orientation[3]
+
+        rotated_offset = _rotate_vector(self.mount_translation, vehicle_orientation)
+        pose.pose.position.x -= rotated_offset[0]
+        pose.pose.position.y -= rotated_offset[1]
+        pose.pose.position.z -= rotated_offset[2]
+
     def _odometry_cb(self, msg):
         odom_pose = PoseStamped()
         odom_pose.header = deepcopy(msg.header)
         odom_pose.pose = deepcopy(msg.pose.pose)
         if not odom_pose.header.frame_id:
             odom_pose.header.frame_id = self.odom_frame
+
+        self._apply_mount_offset(odom_pose)
 
         if self.publish_odom_pose:
             self.odom_pose_pub.publish(self._runtime_pose(odom_pose, 'odom'))

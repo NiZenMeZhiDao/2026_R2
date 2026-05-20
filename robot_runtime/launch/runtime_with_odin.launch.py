@@ -26,6 +26,11 @@ def generate_launch_description():
         default_value=os.path.join(bridge_dir, 'config', 'param.yaml'),
         description='Path to the Odin bridge parameter file.',
     )
+    mount_config_arg = DeclareLaunchArgument(
+        'mount_config_file',
+        default_value=os.path.join(bridge_dir, 'config', 'odin_mount.yaml'),
+        description='Path to the ODIN mount offset parameter file.',
+    )
     odin_config_arg = DeclareLaunchArgument(
         'odin_config_file',
         default_value=default_odin_config,
@@ -53,6 +58,7 @@ def generate_launch_description():
         PythonLaunchDescriptionSource(odin_launch),
         launch_arguments={
             'bridge_config_file': LaunchConfiguration('bridge_config_file'),
+            'mount_config_file': LaunchConfiguration('mount_config_file'),
             'odin_config_file': LaunchConfiguration('odin_config_file'),
             'pcd_path': LaunchConfiguration('pcd_path'),
         }.items(),
@@ -61,6 +67,7 @@ def generate_launch_description():
     return LaunchDescription([
         runtime_config_arg,
         bridge_config_arg,
+        mount_config_arg,
         odin_config_arg,
         pcd_path_arg,
         debug_period_arg,
