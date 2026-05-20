@@ -3,8 +3,8 @@ odin_localization_bridge:
     # ODIN传感器相对于车身中心的安装偏置。
     # 车身坐标系: x前, y左, z上, yaw逆时针。
     # mount_base_to_odin: 从车身中心指向ODIN的平移向量（车身坐标系下）。
-    # mount_base_to_odin_yaw: ODIN朝向相对于车身朝向的偏航角。
-    # 默认值: ODIN在车身后方0.35m，方向朝后(yaw=pi)。
+    #   ODIN在车身后方约0.35m，即车身坐标系下(-0.35, 0)。
+    # mount_base_to_odin_yaw: ODIN朝向相对于车身朝向的偏航角，pi表示朝后。
     mount_base_to_odin_x: -0.35
     mount_base_to_odin_y: 0.0
     mount_base_to_odin_z: 0.0

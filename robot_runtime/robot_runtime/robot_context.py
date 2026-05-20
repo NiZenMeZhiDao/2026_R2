@@ -16,16 +16,16 @@ class RobotContext:
     robot_pose: Optional[PoseStamped] = None
     robot_pose_map: Optional[PoseStamped] = None
     robot_pose_odom: Optional[PoseStamped] = None
-    robot_pose_map_xytheta: List[float] = field(default_factory=list)
-    robot_pose_odom_xytheta: List[float] = field(default_factory=list)
+    robot_pose_map_xytheta: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
+    robot_pose_odom_xytheta: List[float] = field(default_factory=lambda: [0.0, 0.0, 0.0])
     robot_x: float = 0.0
     robot_y: float = 0.0
     robot_theta: float = 0.0
     odom_x: float = 0.0
     odom_y: float = 0.0
     odom_theta: float = 0.0
-    robot_pose_frame: str = ''
-    odom_pose_frame: str = ''
+    robot_pose_frame: str = 'odom'
+    odom_pose_frame: str = 'odom'
     map_ready: bool = False
     localization_ready: bool = False
     odom_ready: bool = False

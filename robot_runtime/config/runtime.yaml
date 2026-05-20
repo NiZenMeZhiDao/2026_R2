@@ -15,3 +15,6 @@ robot_runtime_node:
 
     move_to_xy_tolerance: 0.05
     move_to_theta_tolerance: 0.05
+
+    # Skill timer period in seconds (controls how fast move_to / suspension ticks).
+    skill_period_sec: 0.005

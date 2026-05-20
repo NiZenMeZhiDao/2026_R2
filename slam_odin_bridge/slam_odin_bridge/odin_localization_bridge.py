@@ -148,7 +148,7 @@ class OdinLocalizationBridge(Node):
 
     def _runtime_pose(self, odin_pose, reference_key):
         runtime_source_pose = deepcopy(odin_pose)
-        if not self.zero_pose_on_start:
+        if not self.zero_pose_on_start or reference_key == 'map':
             return runtime_source_pose
 
         reference_attr = '_%s_reference_pose' % reference_key

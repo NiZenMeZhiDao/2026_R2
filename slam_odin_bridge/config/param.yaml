@@ -12,7 +12,7 @@ odin_localization_bridge:
     publish_odom_pose: true
     republish_imu: true
     allow_odom_fallback: true
-    zero_pose_on_start: false
+    zero_pose_on_start: true
     tf_lookup_timeout_sec: 0.05
     status_period_sec: 0.5
 
